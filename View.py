@@ -537,56 +537,6 @@ class View:
                                 c.standingStillCounter += 0
                                 #c.paused = False
 
-                        if 1 == 0: #movex == 1 and movey == 0:
-                            # TOO COMPLICATED'
-                            tryMove = rand.sample(set([-1,1]), 1)
-                            #print("tryMove7: " + str(tryMove))
-                            tryMove = tryMove[0]
-                            if self.collision(c, (oldPos[0] + 1, oldPos[1] + tryMove), direCreeps, radiantCreeps):
-                                if self.collision(c, (oldPos[0] + 1, oldPos[1] + tryMove*-1), direCreeps, radiantCreeps):
-                                    if self.collision(c, (oldPos[0], oldPos[1] + tryMove), direCreeps, radiantCreeps):
-                                        if self.collision(c, (oldPos[0], oldPos[1] + tryMove*-1), direCreeps, radiantCreeps):
-                                            if self.collision(c, (oldPos[0] - 1, oldPos[1] + tryMove), direCreeps, radiantCreeps):
-                                                if self.collision(c, (oldPos[0] - 1, oldPos[1] + tryMove *-1), direCreeps, radiantCreeps):
-                                                    c.pos = (oldPos[0], oldPos[1])
-                                                else:
-                                                    c.pos = (oldPos[0] - 1, oldPos[1] + tryMove *-1)
-                                            else:
-                                                c.pos = (oldPos[0] - 1, oldPos[1] + tryMove)
-                                        else:
-                                            c.pos = (oldPos[0], oldPos[1] + tryMove *-1)
-                                    else:
-                                        c.pos = (oldPos[0], oldPos[1] + tryMove)
-                                else:
-                                    c.pos = (oldPos[0] + 1, oldPos[1] + tryMove *-1)
-                            else:
-                                c.pos = (oldPos[0] + 1, oldPos[1] + tryMove)
-                        #else: #if 1 ==2: #if movex == 0 and movey == 1:
-                            tryMove = c.randomDirection# rand.sample(set([-3,-2,-1,1,2,3]), 1)
-                            #print("tryMove: " + str(tryMove))
-                            #tryMove = tryMove[0]
-                            if self.collision(c, (oldPos[0] + tryMove, oldPos[1] + 1), direCreeps, radiantCreeps):
-                                if self.collision(c, (oldPos[0] + tryMove *-1, oldPos[1] + 1), direCreeps, radiantCreeps):
-                                    if self.collision(c, (oldPos[0] + tryMove, oldPos[1]), direCreeps, radiantCreeps):
-                                        if self.collision(c, (oldPos[0] + tryMove *-1, oldPos[1]), direCreeps, radiantCreeps):
-                                            if self.collision(c, (oldPos[0] + tryMove, oldPos[1] - 1), direCreeps, radiantCreeps):
-                                                if self.collision(c, (oldPos[0] + tryMove *-1, oldPos[1] - 1), direCreeps, radiantCreeps):
-                                                    c.pos = (oldPos[0], oldPos[1])
-                                                else:
-                                                    c.pos = (oldPos[0] + tryMove *-1, oldPos[1] - 1)
-                                            else:
-                                                c.pos = (oldPos[0] + tryMove, oldPos[1] - 1)
-                                        else:
-                                            c.pos = (oldPos[0] + tryMove *-1, oldPos[1])
-                                    else:
-                                        c.pos = (oldPos[0] + tryMove, oldPos[1])
-                                else:
-                                    c.pos = (oldPos[0] + tryMove *-1, oldPos[1] + 1)
-                            else:
-                                c.pos = (oldPos[0] + tryMove, oldPos[1] + 1)
-
-
-
                 screen.blit(c.image, c.pos)
 
                 self.drawHpBar(screen, c, green)
