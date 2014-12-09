@@ -1,5 +1,4 @@
 required bits:
-HP bars
 towers need to attack
 updated HP/damage 
 creep v creep attack logic
@@ -16,7 +15,7 @@ splash screen
 instructions
 hero select screen
 fog of war
-more defined heroes - special abilities (self-heal, AOE damage, AOE heal, devour, rage, 5-sec python pyshield)
+more defined heroes - special abilities (self-heal, AOE damage, AOE heal, devour, rage, 5-sec shield)
 buy items
 game over screen/stats
 ANIMATIONS
