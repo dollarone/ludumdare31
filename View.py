@@ -162,14 +162,12 @@ class View:
     def generateRadiantBuildings(self):
         radiantAncientImage = pygame.image.load("ancient.png").convert()
         radiantTowerImage = pygame.image.load("redtower.png").convert()
-        #myimage.set_colorkey(-1, RLEACCEL) # use upper-left pixel as transparent
         radiantTowerImage.set_colorkey((255,255,255))
         radiantTowerImageRect = radiantTowerImage.get_rect()
         radiantAncientImage.set_colorkey((255,255,255))
         radiantAncientImageRect = radiantAncientImage.get_rect()
 
         buildings = []
-        #buildings.append(Ancient((320, 660), radiantAncientImageRect, radiantAncientImage, "Radiant Ancient"))
         buildings.append(Ancient((300, 660), radiantAncientImageRect, radiantAncientImage, 150, "Radiant Ancient"))
         #easy
         buildings.append(Lvl1Tower((320, 640), radiantTowerImageRect, radiantTowerImage)) #lvl4
@@ -191,14 +189,12 @@ class View:
     def generateDireBuildings(self):
         direAncientImage = pygame.image.load("ancient.png").convert()
         direTowerImage = pygame.image.load("redtower.png").convert()
-        #myimage.set_colorkey(-1, RLEACCEL) # use upper-left pixel as transparent
         direTowerImage.set_colorkey((255,255,255))
         direTowerImageRect = direTowerImage.get_rect()
         direAncientImage.set_colorkey((255,255,255))
         direAncientImageRect = direAncientImage.get_rect()
 
         buildings = []
-        #buildings.append(Ancient((940, 40), direAncientImageRect, direAncientImage, "Dire Ancient"))
         buildings.append(Ancient((940, 20), direAncientImageRect, direAncientImage, 80, "Dire Ancient"))
         #easy:
         buildings.append(Lvl1Tower((920, 40), direTowerImageRect, direTowerImage)) #lvl4
@@ -229,11 +225,6 @@ class View:
                if self.dist(creep.pos, b.pos) <= creep.attackRange:
                     self.attack(creep, b)
                     return True
-
-#            if b.canAttack():
- #               if self.dist(creep.pos, buildings.pos) <= b.attackRange:
-  #                  attack(b.attack, creep)
-
         return False
 
     def attack(self, source, dest):
@@ -255,10 +246,6 @@ class View:
                     #print("pos: " + str(pos) + " is " + str(self.dist(pos, c.pos)) + " from " + str(c.pos))
                     return True
         return False
-
-    # tests still collide forever. maybe a collide counter special case?
-    # ^-- this. if not moved in last ... 10 frames? do something special
-
 
     def standOrRand(self, c, pos):
         global rand
@@ -300,14 +287,9 @@ class View:
         background = background.convert()
 
         background_image = pygame.image.load("map.png").convert()
-        #screen.blit(background_image, (0, 0))
-        #screen.blit(background_image, [0, 0])
-
-        #background_image2 = pygame.image.load("dota_minimap_scaled.jpg").convert()
 
         meleeimage = pygame.image.load("meleecreep.png").convert()
         rangedimage = pygame.image.load("rangedcreep2.png").convert()
-        #myimage.set_colorkey(-1, RLEACCEL) # use upper-left pixel as transparent
         meleeimage.set_colorkey((255,255,255))
         meleeimagerect = meleeimage.get_rect()
         rangedimage.set_colorkey((255,255,255))
@@ -353,7 +335,7 @@ class View:
                 radiantEasyLane.append((940, 600 + i*-20))
                 direHardLane.append((940 - 60 - i*20,660))
                 direEasyLane.append((320, 100 + i*20))
-        #creep = Creep(radiantHardLane, imagerect)
+
         radiantCreeps = []
         direCreeps = []
 
@@ -369,14 +351,6 @@ class View:
 
         while mainloop:
 
-            #print("New turn")
- #           for b in direBuildings:
- #               screen.blit(b.image, b.pos)
-                #newTurn(b)
-#                #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
-#            for b in radiantBuildings:
-#                screen.blit(b.image, b.pos)
-#                print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
             for c in radiantCreeps:
                 c.newTurn()
             for c in direCreeps:
@@ -422,7 +396,6 @@ class View:
                         view = (view + 1) % 4
 
             screen.fill(black)
-            #background_image2 = pygame.transform.scale(background_image, (817, 790))
             screen.blit(background_image, (235, -55))
 
             if view == 0 or view ==1:
@@ -438,21 +411,17 @@ class View:
                 if b.alive:
                     screen.blit(b.image, b.pos)
                     self.drawHpBar(screen, b, red)
-                #newTurn(b)
                 #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
             for b in radiantBuildings:
                 if b.alive:
-                    screen.blit(b.image, b.pos) #(b.pos[0] - b.radius, b.pos[1] - b.radius))
+                    screen.blit(b.image, b.pos)
                     self.drawHpBar(screen, b, green)
 
 
-            #screen.blit(myimage, creep.pos)
             for c in radiantCreeps:
                 if self.enemiesInRange(): # this function records aggro
-                    #print("attack")
                     unused_variable = "attack enemies"
                 elif self.buildingsInRange(c, direBuildings):
-                    #print("attack buildings")
                     unused_variable = "attack buildings"
                 else:
                     # find out where the creep is heading
@@ -467,7 +436,7 @@ class View:
                     targety = targetPathPos[1] - prevPathPos[1]
                     oldPos = c.pos
                     c.move()
-                    # the move might be blocked!
+                    # the move might be blocked! check if it's possible:'
                     if self.collision(c, c.pos, direCreeps, radiantCreeps):
                         #generate some random alternate moves:
                         #left/right if moving vertically - pick one and continue each turn
@@ -477,6 +446,10 @@ class View:
                         # if not, stand still. update c.pos
                         movex = c.pos[0] - oldPos[0]
                         movey = c.pos[1] - oldPos[1]
+
+                        # this bit is not working very well:
+
+
                         #print("Collision!: " + str(targetx) + "," + str(targety))
                         #c.pos = (oldPos[0] + rand.sample([-1,0,1], 1)[0], oldPos[1] + rand.sample([-1,0,1], 1)[0])
                         if targety < 0:
@@ -523,7 +496,7 @@ class View:
                                     if len(c.path) > c.pathPos + 1:
                                         c.pathPos += 1
                                 c.paused = False
-                                #print("UNPAUSED")
+                                #print("UNPAUSED") # never triggered...
                                 quit()
                         else:
                             if self.dist(c.pos, c.prevPos) <= c.radius/2:
