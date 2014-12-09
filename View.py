@@ -5,14 +5,18 @@ from pygame.locals import *
 
 class Building:
 
-    def __init__(self, pos, hp=300):
-        self.name = "Unnamed Building"
-        self.totalHp = hp
-        self.hp = self.totalHp
+    def __init__(self, pos, hp=300, rect=None, image=None, viewModifier=-20, name="Unnamed Building"):
+        self.name = name
+        self.hp = hp
+        self.hpmax = self.hp
         self.alive = True
         self.regen = 1
         self.canAttack = False
         self.pos = pos
+        self.radius = 10
+        self.rect = rect
+        self.image = image
+        self.viewModifier = viewModifier
 
     def damage(self, dam):
         self.hp -= dam
@@ -21,9 +25,9 @@ class Building:
 
 class Lvl1Tower(Building):
 
-    def __init__(self, pos):
-        super(Lvl1Tower, self).__init__(pos)
-        self.name = "Lvl 1 Tower"
+    def __init__(self, pos, rect, image, viewModifier=-20, name="Lvl 1 Tower"):
+        hp = 1300
+        super(Lvl1Tower, self).__init__(pos, hp, rect, image, viewModifier, name)
         self.attack = 20
         self.canAttack = True
         self.attackRange = 40
@@ -34,28 +38,35 @@ class Lvl1Tower(Building):
 
 class Ancient(Building):
 
-    def __init__(self, pos, name="Ancient"):
-        hp = 1000
-        super(Ancient, self).__init__(pos, hp)
-        self.name = name
+    def __init__(self, pos, rect, image, viewModifier=-20, name="Ancient"):
+        hp = 4250
+        super(Ancient, self).__init__(pos, hp, rect, image, viewModifier, name)
+        self.radius = 100
+        self.regen = 3
 
 class Creep:
 
-    def __init__(self, path=[], rect=None, creepType="Unknown"):
+    def __init__(self, path=[], rect=None, image=None, creepType="Unknown"):
         global rand
         self.path = path
         self.rect = rect
-        self.hp = 200
+        self.hp = 300
+        self.hpmax = self.hp
         self.attack = 10
         self.pathPos = 0
         self.pos = path[0]
+        self.prevPos = self.pos #used for checking if the creep is stuck
         self.attackRange = 5
         self.readyToAttack = True
         self.attackCooldown = 10
         self.currentAttackCooldown = 0
         self.creepType = creepType
-        self.radius = 10
+        self.radius = 5
         self.randomDirection = rand.sample([-1,1],1)[0]
+        self.paused = False
+        self.standingStillCounter = 0
+        self.image = image
+        self.viewModifier = 0
 
     def resetAttackCooldown(self):
         self.readyToAttack = False
@@ -100,14 +111,17 @@ class Creep:
 
 class MeleeCreep(Creep):
 
-    def __init__(self, path, rect):
-        super(MeleeCreep, self).__init__(path, rect, "Melee Creep")
+    def __init__(self, path, rect, image):
+        super(MeleeCreep, self).__init__(path, rect, image, "Melee Creep")
+        self.hp = 550
+        self.hpmax = 550
 
 class RangedCreep(Creep):
 
-    def __init__(self, path, rect):
-        super(RangedCreep, self).__init__(path, rect, "Ranged Creep")
+    def __init__(self, path, rect, image):
+        super(RangedCreep, self).__init__(path, rect, image, "Ranged Creep")
         self.attackRange = 20
+        self.hp = 300
 
 class View:
 
@@ -127,7 +141,7 @@ class View:
 
     def drawLane(self, scr, lane, towers):
         global red, darkBlue, font
-        n = 0
+        n = 1
         for i in lane:
             if n in towers:
                 #print("Tower at " + str(i[0]) + "," + str(i[1]))
@@ -138,44 +152,70 @@ class View:
                 self.addText(scr, red, i, n)
             n += 1
 
+    def drawHpBar(self, scr, c, col):
+        global green, black
+        pygame.draw.rect(scr, black, (c.pos[0] - 1 - c.hpmax/40, c.pos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
+
+        if c.hp > 0:
+            pygame.draw.rect(scr, col, (c.pos[0] + 1 - c.hpmax/40, c.pos[1] - c.radius + 1 + 1*c.viewModifier, c.hp/15, 6), 0)
+
     def generateRadiantBuildings(self):
+        radiantAncientImage = pygame.image.load("ancient.png").convert()
+        radiantTowerImage = pygame.image.load("redtower.png").convert()
+        #myimage.set_colorkey(-1, RLEACCEL) # use upper-left pixel as transparent
+        radiantTowerImage.set_colorkey((255,255,255))
+        radiantTowerImageRect = radiantTowerImage.get_rect()
+        radiantAncientImage.set_colorkey((255,255,255))
+        radiantAncientImageRect = radiantAncientImage.get_rect()
+
         buildings = []
-        buildings.append(Ancient((320, 660), "Radiant Ancient"))
+        #buildings.append(Ancient((320, 660), radiantAncientImageRect, radiantAncientImage, "Radiant Ancient"))
+        buildings.append(Ancient((300, 660), radiantAncientImageRect, radiantAncientImage, 150, "Radiant Ancient"))
+        #easy
+        buildings.append(Lvl1Tower((320, 640), radiantTowerImageRect, radiantTowerImage)) #lvl4
+        buildings.append(Lvl1Tower((320, 540), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl1Tower((320, 420), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl1Tower((320, 280), radiantTowerImageRect, radiantTowerImage))
+        #mid:
+        buildings.append(Lvl1Tower((340, 640), radiantTowerImageRect, radiantTowerImage, -10))
+        buildings.append(Lvl1Tower((420, 560), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl1Tower((500, 480), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl1Tower((580, 400), radiantTowerImageRect, radiantTowerImage))
+        #hard:
+        buildings.append(Lvl1Tower((340, 660), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl1Tower((440, 660), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl1Tower((560, 660), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl1Tower((800, 660), radiantTowerImageRect, radiantTowerImage))
         return buildings
 
     def generateDireBuildings(self):
+        direAncientImage = pygame.image.load("ancient.png").convert()
+        direTowerImage = pygame.image.load("redtower.png").convert()
+        #myimage.set_colorkey(-1, RLEACCEL) # use upper-left pixel as transparent
+        direTowerImage.set_colorkey((255,255,255))
+        direTowerImageRect = direTowerImage.get_rect()
+        direAncientImage.set_colorkey((255,255,255))
+        direAncientImageRect = direAncientImage.get_rect()
+
         buildings = []
-        buildings.append(Ancient((940, 40), "Dire Ancient"))
-        buildings.append(Lvl1Tower((320, 540)))
+        #buildings.append(Ancient((940, 40), direAncientImageRect, direAncientImage, "Dire Ancient"))
+        buildings.append(Ancient((940, 20), direAncientImageRect, direAncientImage, 80, "Dire Ancient"))
+        #easy:
+        buildings.append(Lvl1Tower((920, 40), direTowerImageRect, direTowerImage)) #lvl4
+        buildings.append(Lvl1Tower((820, 40), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl1Tower((700, 40), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl1Tower((460, 40), direTowerImageRect, direTowerImage))
+        #mid:
+        buildings.append(Lvl1Tower((920, 60), direTowerImageRect, direTowerImage, -10))
+        buildings.append(Lvl1Tower((840, 140), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl1Tower((760, 220), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl1Tower((680, 300), direTowerImageRect, direTowerImage))
+        #hard:
+        buildings.append(Lvl1Tower((940, 60), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl1Tower((940, 160), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl1Tower((940, 280), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl1Tower((940, 420), direTowerImageRect, direTowerImage))
         return buildings
-        #buildings.append(Tower((940, 40)))
-#            radiantMidLane.append((320 + i*20, 660 + i*-20))
-#            direMidLane.append((940 + i*-20, 40 + i*20))
-#New turn
-#Tower at 320,640
-#Tower at 320,540
-#Tower at 320,420
-#Tower at 320,280
-#Tower at 340,640
-#Tower at 420,560
-#Tower at 500,480
-#Tower at 580,400
-#Tower at 340,660
-#Tower at 440,660
-#Tower at 560,660
-#Tower at 800,660
-#Tower at 940,60
-#Tower at 940,160
-#Tower at 940,280
-#Tower at 940,420
-#Tower at 920,60
-#Tower at 840,140
-#Tower at 760,220
-#Tower at 680,300
-#Tower at 920,40
-#Tower at 820,40
-#Tower at 700,40
-#Tower at 460,40
 
     def dist(self, p, q):
         return math.sqrt((p[0] - q[0]) ** 2+(p[1] - q[1]) ** 2)
@@ -207,16 +247,34 @@ class View:
         for c in direCreeps:
             if id(c) != id(creep):
                 if self.dist(pos, c.pos) <= c.radius:
-                    print("pos: " + str(c.pos) + " is " + str(self.dist(pos, c.pos)) + " from " + str(c.pos))
-                    #quit()
+                    #print("pos: " + str(pos) + " is " + str(self.dist(pos, c.pos)) + " from " + str(c.pos))
                     return True
         for c in radiantCreeps:
             if id(c) != id(creep):
                 if self.dist(pos, c.pos) <= c.radius:
-                    print("pos: " + str(c.pos) + " is " + str(self.dist(pos, c.pos)) + " from " + str(c.pos))
-                    #quit()
+                    #print("pos: " + str(pos) + " is " + str(self.dist(pos, c.pos)) + " from " + str(c.pos))
                     return True
         return False
+
+    # tests still collide forever. maybe a collide counter special case?
+    # ^-- this. if not moved in last ... 10 frames? do something special
+
+
+    def standOrRand(self, c, pos):
+        global rand
+        foo = rand.randrange(10)
+        if foo == 0:
+            return (pos[0] + c.randomDirection, pos[1])
+        elif foo == 1:
+            return (pos[0], pos[1] + c.randomDirection)
+        elif foo == 2:
+            return (pos[0] + c.randomDirection, pos[1] + c.randomDirection)
+        #elif foo == 2:
+        #    return (pos[0] + rand.sample([-1,1],1)[0], pos[1] + rand.sample([-1,0,1],1)[0])
+        #elif foo == 3:
+        #    return (pos[0] + rand.sample([-1,0,1],1)[0], pos[1] + rand.sample([-1,1],1)[0])
+        else:
+            return pos
 
     def start(self):
         global red, green, blue, darkBlue, white, black, pink, mygreen, font, rand
@@ -235,11 +293,17 @@ class View:
         h = 720
         screen_size = (w, h)
         screen = pygame.display.set_mode(screen_size, pygame.FULLSCREEN)
+
         background = pygame.Surface(screen.get_size())
         background.fill(mygreen)
         # convert to make blitting faster
         background = background.convert()
-        screen.blit(background, (0, 0))
+
+        background_image = pygame.image.load("map.png").convert()
+        #screen.blit(background_image, (0, 0))
+        #screen.blit(background_image, [0, 0])
+
+        #background_image2 = pygame.image.load("dota_minimap_scaled.jpg").convert()
 
         meleeimage = pygame.image.load("meleecreep.png").convert()
         rangedimage = pygame.image.load("rangedcreep2.png").convert()
@@ -255,7 +319,7 @@ class View:
         mainloop = True
 
         # 0 = all/both, 1 = radiant, 2  = dire,  3 = nothing
-        view = 1
+        view = 3
 
         direHardLane = []
         direMidLane = []
@@ -304,12 +368,15 @@ class View:
         spawningCooldown = 0
 
         while mainloop:
-            print("New turn")
-            for b in direBuildings:
+
+            #print("New turn")
+ #           for b in direBuildings:
+ #               screen.blit(b.image, b.pos)
                 #newTurn(b)
-                print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
-            for b in radiantBuildings:
-                print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
+#                #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
+#            for b in radiantBuildings:
+#                screen.blit(b.image, b.pos)
+#                print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
             for c in radiantCreeps:
                 c.newTurn()
             for c in direCreeps:
@@ -321,13 +388,13 @@ class View:
             if spawning > 0:
                 if spawningCooldown <= 0:
                     if spawning == 1:
-                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect))
-                        radiantCreeps.append(RangedCreep(radiantMidLane, rangedimagerect))
-                        radiantCreeps.append(RangedCreep(radiantEasyLane, rangedimagerect))
+                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect, rangedimage))
+                        radiantCreeps.append(RangedCreep(radiantMidLane, rangedimagerect, rangedimage))
+                        radiantCreeps.append(RangedCreep(radiantEasyLane, rangedimagerect, rangedimage))
                     else:
-                        radiantCreeps.append(MeleeCreep(radiantHardLane, meleeimagerect))
-                        radiantCreeps.append(MeleeCreep(radiantMidLane, meleeimagerect))
-                        radiantCreeps.append(MeleeCreep(radiantEasyLane, meleeimagerect))
+                        radiantCreeps.append(MeleeCreep(radiantHardLane, meleeimagerect, meleeimage))
+                        radiantCreeps.append(MeleeCreep(radiantMidLane, meleeimagerect, meleeimage))
+                        radiantCreeps.append(MeleeCreep(radiantEasyLane, meleeimagerect, meleeimage))
 
                     spawning -= 1
                     spawningCooldown = 20
@@ -335,9 +402,9 @@ class View:
                     spawningCooldown -= 1
 
             if previousSpawn + 10.0 < playtime:
-                radiantCreeps.append(MeleeCreep(radiantHardLane, meleeimagerect))
-                radiantCreeps.append(MeleeCreep(radiantMidLane, meleeimagerect))
-                radiantCreeps.append(MeleeCreep(radiantEasyLane, meleeimagerect))
+                radiantCreeps.append(MeleeCreep(radiantHardLane, meleeimagerect, meleeimage))
+                radiantCreeps.append(MeleeCreep(radiantMidLane, meleeimagerect, meleeimage))
+                radiantCreeps.append(MeleeCreep(radiantEasyLane, meleeimagerect, meleeimage))
                 previousSpawn = playtime
                 spawning = 4
                 spawningCooldown = 20
@@ -354,17 +421,50 @@ class View:
                         # toggle view
                         view = (view + 1) % 4
 
-            #pygame.display.update()
+            screen.fill(black)
+            #background_image2 = pygame.transform.scale(background_image, (817, 790))
+            screen.blit(background_image, (235, -55))
 
-            #imagerect.move_ip(1, 1)
-            screen.fill(mygreen)
+            if view == 0 or view ==1:
+                self.drawLane(screen, radiantHardLane, (1, 6, 12, 19))
+                self.drawLane(screen, radiantMidLane, (1, 5, 9, 13))
+                self.drawLane(screen, radiantEasyLane, (1, 6, 12, 24))
+            if view == 0 or view == 2:
+                self.drawLane(screen, direHardLane, (1, 6, 12, 19))
+                self.drawLane(screen, direMidLane, (1, 5, 9, 13))
+                self.drawLane(screen, direEasyLane, (1, 6, 12, 24))
+
+            for b in direBuildings:
+                if b.alive:
+                    screen.blit(b.image, b.pos)
+                    self.drawHpBar(screen, b, red)
+                #newTurn(b)
+                #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
+            for b in radiantBuildings:
+                if b.alive:
+                    screen.blit(b.image, b.pos) #(b.pos[0] - b.radius, b.pos[1] - b.radius))
+                    self.drawHpBar(screen, b, green)
+
+
             #screen.blit(myimage, creep.pos)
             for c in radiantCreeps:
                 if self.enemiesInRange(): # this function records aggro
-                    print("attack")
+                    #print("attack")
+                    unused_variable = "attack enemies"
                 elif self.buildingsInRange(c, direBuildings):
-                    print("attack buildings")
+                    #print("attack buildings")
+                    unused_variable = "attack buildings"
                 else:
+                    # find out where the creep is heading
+                    if len(c.path) > 0:
+                        prevPathPos = c.path[c.pathPos-1]
+                        if len(c.path) > c.pathPos:
+                            targetPathPos = c.path[c.pathPos]
+                    else:
+                        prevPathPos = c.path[c.pathPos]
+                        targetPathPos = c.path[c.pathPos+1]
+                    targetx = targetPathPos[0] - prevPathPos[0]
+                    targety = targetPathPos[1] - prevPathPos[1]
                     oldPos = c.pos
                     c.move()
                     # the move might be blocked!
@@ -377,43 +477,70 @@ class View:
                         # if not, stand still. update c.pos
                         movex = c.pos[0] - oldPos[0]
                         movey = c.pos[1] - oldPos[1]
-                        print("Collision!: " + str(movex) + "," + str(movey))
+                        #print("Collision!: " + str(targetx) + "," + str(targety))
                         #c.pos = (oldPos[0] + rand.sample([-1,0,1], 1)[0], oldPos[1] + rand.sample([-1,0,1], 1)[0])
-                        if movey == -1:
+                        if targety < 0:
                             if not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1] - 1), direCreeps, radiantCreeps):
                                 c.pos = (oldPos[0] + c.randomDirection, oldPos[1] - 1)
                             elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), direCreeps, radiantCreeps):
                                 c.pos = (oldPos[0] + c.randomDirection, oldPos[1])
+                            #elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), direCreeps, radiantCreeps):
+                            #    c.pos = (oldPos[0] + c.randomDirection, oldPos[1] + 1)
                             else:
-                                c.pos = (oldPos[0], oldPos[1])
-                        if movey == 1:
+                                c.pos = self.standOrRand(c, oldPos)
+                        if targety > 0:
                             if not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1] + 1), direCreeps, radiantCreeps):
                                 c.pos = (oldPos[0] + c.randomDirection, oldPos[1] + 1)
                             elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), direCreeps, radiantCreeps):
                                 c.pos = (oldPos[0] + c.randomDirection, oldPos[1])
+                            #elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), direCreeps, radiantCreeps):
+                            #    c.pos = (oldPos[0] + c.randomDirection, oldPos[1] - 1)
                             else:
-                                c.pos = (oldPos[0], oldPos[1])
-                        if movex == -1:
+                                c.pos = self.standOrRand(c, oldPos)
+                        if targetx < 0:
                             if not self.collision(c, (oldPos[0] - 1, oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
                                 c.pos = (oldPos[0] - 1, oldPos[1] + c.randomDirection)
                             elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
                                 c.pos = (oldPos[0], oldPos[1] + c.randomDirection)
+                            #elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
+                            #    c.pos = (oldPos[0] + 1, oldPos[1] + c.randomDirection)
                             else:
-                                c.pos = (oldPos[0], oldPos[1])
-                        if movex == 1:
+                                c.pos = self.standOrRand(c, oldPos)
+                        if targetx > 0:
                             if not self.collision(c, (oldPos[0] + 1, oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
                                 c.pos = (oldPos[0] + 1, oldPos[1] + c.randomDirection)
                             elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
                                 c.pos = (oldPos[0], oldPos[1] + c.randomDirection)
+                            #elif not self.collision(c, (oldPos[0] - 1, oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
+                            #    c.pos = (oldPos[0] - 1, oldPos[1] + c.randomDirection)
                             else:
-                                c.pos = (oldPos[0], oldPos[1])
+                                c.pos = self.standOrRand(c, oldPos) #(oldPos[0], oldPos[1])
 
-
+                        if c.paused:
+                            c.standingStillCounter -= 1
+                            if c.standingStillCounter == 0:
+                                if rand.randrange(1) == 0:
+                                    if len(c.path) > c.pathPos + 1:
+                                        c.pathPos += 1
+                                c.paused = False
+                                #print("UNPAUSED")
+                                quit()
+                        else:
+                            if self.dist(c.pos, c.prevPos) <= c.radius/2:
+                                c.standingStillCounter += 1
+                                #print("Standing still: " + str(c.standingStillCounter))
+                                if rand.randrange(1) < c.standingStillCounter:
+                                    c.paused = True
+                                    #print("PAUSED")
+                                    quit()
+                            else:
+                                c.standingStillCounter += 0
+                                #c.paused = False
 
                         if 1 == 0: #movex == 1 and movey == 0:
                             # TOO COMPLICATED'
                             tryMove = rand.sample(set([-1,1]), 1)
-                            print("tryMove7: " + str(tryMove))
+                            #print("tryMove7: " + str(tryMove))
                             tryMove = tryMove[0]
                             if self.collision(c, (oldPos[0] + 1, oldPos[1] + tryMove), direCreeps, radiantCreeps):
                                 if self.collision(c, (oldPos[0] + 1, oldPos[1] + tryMove*-1), direCreeps, radiantCreeps):
@@ -436,7 +563,7 @@ class View:
                                 c.pos = (oldPos[0] + 1, oldPos[1] + tryMove)
                         #else: #if 1 ==2: #if movex == 0 and movey == 1:
                             tryMove = c.randomDirection# rand.sample(set([-3,-2,-1,1,2,3]), 1)
-                            print("tryMove: " + str(tryMove))
+                            #print("tryMove: " + str(tryMove))
                             #tryMove = tryMove[0]
                             if self.collision(c, (oldPos[0] + tryMove, oldPos[1] + 1), direCreeps, radiantCreeps):
                                 if self.collision(c, (oldPos[0] + tryMove *-1, oldPos[1] + 1), direCreeps, radiantCreeps):
@@ -460,30 +587,13 @@ class View:
 
 
 
-                # we have 20 pixels to  move
-                #if FPS % 20 == 0:
-                #c.move()
-                #    print("lol " + str(FPS % 20))
-                if c.creepType == "Ranged Creep":
-                    screen.blit(rangedimage, c.pos)
-                else:
-                    screen.blit(meleeimage, c.pos)
+                screen.blit(c.image, c.pos)
+
+                self.drawHpBar(screen, c, green)
+
                 #if len(c.path) > n:
                 #    c.pathPos = n
             n += 1
-
-            if view == 0 or view ==1:
-                self.drawLane(screen, radiantHardLane, (1, 6, 12, 19))
-                self.drawLane(screen, radiantMidLane, (1, 5, 9, 13))
-                self.drawLane(screen, radiantEasyLane, (1, 6, 12, 24))
-            if view == 0 or view == 2:
-                self.drawLane(screen, direHardLane, (1, 6, 12, 19))
-                self.drawLane(screen, direMidLane, (1, 5, 9, 13))
-                self.drawLane(screen, direEasyLane, (1, 6, 12, 24))
-
-        # top-left: 300, 80                 top-right: 1000, 80
-        # mid-left:
-        # bot-left: 300, 620                bot-right: 1000, 620
 
             text = "FPS: {0:.2f}   Playtime: {1:.2f}".format(clock.get_fps(), playtime)
             pygame.display.set_caption(text)

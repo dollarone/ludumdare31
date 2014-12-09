@@ -1,0 +1,31 @@
+required bits:
+HP bars
+towers need to attack
+updated HP/damage 
+creep v creep attack logic
+(Generic) Heroes (well, one hits hard and slow, other fast and easy, extra dmg vs towers) and controls/UI
+Experience and Gold
+game over message + restart controls
+attack "animations"/markers
+
+
+extras:
+sound
+music
+splash screen
+instructions
+hero select screen
+fog of war
+more defined heroes - special abilities (self-heal, AOE damage, AOE heal, devour, rage, 5-sec python pyshield)
+buy items
+game over screen/stats
+ANIMATIONS
+LVL up and abilities
+able to use/trigger abilities/items
+ability to recall heroes to heal
+
+
+
+problems: only 1 attacking at a time?
+creep collide and get stuck
+...and track back!
