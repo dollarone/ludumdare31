@@ -1,4 +1,5 @@
 required bits:
+make creep classes have a static image and rect
 towers need to attack
 updated HP/damage 
 creep v creep attack logic

@@ -111,17 +111,28 @@ class Creep:
 
 class MeleeCreep(Creep):
 
-    def __init__(self, path, rect, image):
+    meleeimage = pygame.image.load("meleecreep.png")    # didn't convert. is that bad?'
+    meleeimage.set_colorkey(( 255, 255, 255))
+    meleeimagerect = meleeimage.get_rect()
+
+    def __init__(self, path, rect=None, image=None):
         super(MeleeCreep, self).__init__(path, rect, image, "Melee Creep")
         self.hp = 550
         self.hpmax = 550
+        self.image = MeleeCreep.meleeimage.convert()
+        self.rect = MeleeCreep.meleeimagerect
 
 class RangedCreep(Creep):
+    rangedimage = pygame.image.load("rangedcreep2.png")
+    rangedimage.set_colorkey((255, 255, 255))
+    rangedimagerect = rangedimage.get_rect()
 
-    def __init__(self, path, rect, image):
+    def __init__(self, path, rect=None, image=None):
         super(RangedCreep, self).__init__(path, rect, image, "Ranged Creep")
         self.attackRange = 20
         self.hp = 300
+        self.image = rangedimage.convert()
+        self.rect = rangedimagerect
 
 class View:
 
@@ -263,6 +274,10 @@ class View:
         else:
             return pos
 
+    def spawn(self, group, melee):
+        quit()
+        #                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect, rangedimage))
+
     def start(self):
         global red, green, blue, darkBlue, white, black, pink, mygreen, font, rand
 
@@ -282,18 +297,18 @@ class View:
         screen = pygame.display.set_mode(screen_size, pygame.FULLSCREEN)
 
         background = pygame.Surface(screen.get_size())
-        background.fill(mygreen)
+        #background.fill(mygreen)
         # convert to make blitting faster
         background = background.convert()
 
         background_image = pygame.image.load("map.png").convert()
 
-        meleeimage = pygame.image.load("meleecreep.png").convert()
-        rangedimage = pygame.image.load("rangedcreep2.png").convert()
-        meleeimage.set_colorkey((255,255,255))
-        meleeimagerect = meleeimage.get_rect()
-        rangedimage.set_colorkey((255,255,255))
-        rangedimagerect = rangedimage.get_rect()
+        #meleeimage = pygame.image.load("meleecreep.png").convert()
+        #meleeimage.set_colorkey((255,255,255))
+        #meleeimagerect = meleeimage.get_rect()
+        #rangedimage = pygame.image.load("rangedcreep2.png").convert()
+        #rangedimage.set_colorkey((255,255,255))
+        #rangedimagerect = rangedimage.get_rect()
 
         clock = pygame.time.Clock()
         FPS = 60
@@ -376,7 +391,7 @@ class View:
                     spawningCooldown -= 1
 
             if previousSpawn + 10.0 < playtime:
-                radiantCreeps.append(MeleeCreep(radiantHardLane, meleeimagerect, meleeimage))
+                radiantCreeps.append(MeleeCreep(radiantHardLane))
                 radiantCreeps.append(MeleeCreep(radiantMidLane, meleeimagerect, meleeimage))
                 radiantCreeps.append(MeleeCreep(radiantEasyLane, meleeimagerect, meleeimage))
                 previousSpawn = playtime
@@ -396,7 +411,7 @@ class View:
                         view = (view + 1) % 4
 
             screen.fill(black)
-            screen.blit(background_image, (235, -55))
+            #screen.blit(background_image, (235, -55))
 
             if view == 0 or view ==1:
                 self.drawLane(screen, radiantHardLane, (1, 6, 12, 19))
@@ -514,8 +529,32 @@ class View:
 
                 self.drawHpBar(screen, c, green)
 
-                #if len(c.path) > n:
-                #    c.pathPos = n
+            for c in direCreeps:
+                if self.enemiesInRange(): # this function records aggro
+                    unused_variable = "attack enemies"
+                elif self.buildingsInRange(c, direBuildings):
+                    unused_variable = "attack buildings"
+                else:
+                    # find out where the creep is heading
+                    if len(c.path) > 0:
+                        prevPathPos = c.path[c.pathPos-1]
+                        if len(c.path) > c.pathPos:
+                            targetPathPos = c.path[c.pathPos]
+                    else:
+                        prevPathPos = c.path[c.pathPos]
+                        targetPathPos = c.path[c.pathPos+1]
+                    targetx = targetPathPos[0] - prevPathPos[0]
+                    targety = targetPathPos[1] - prevPathPos[1]
+                    oldPos = c.pos
+                    c.move()
+                    # the move might be blocked! check if it's possible:'
+                    if self.collision(c, c.pos, direCreeps, radiantCreeps):
+                        c.pos = oldPos # just stand still
+
+                screen.blit(c.image, c.pos)
+
+                self.drawHpBar(screen, c, green)
+
             n += 1
 
             text = "FPS: {0:.2f}   Playtime: {1:.2f}".format(clock.get_fps(), playtime)
