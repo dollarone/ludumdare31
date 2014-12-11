@@ -131,8 +131,8 @@ class RangedCreep(Creep):
         super(RangedCreep, self).__init__(path, rect, image, "Ranged Creep")
         self.attackRange = 20
         self.hp = 300
-        self.image = rangedimage.convert()
-        self.rect = rangedimagerect
+        self.image = RangedCreep.rangedimage.convert()
+        self.rect = RangedCreep.rangedimagerect
 
 class View:
 
@@ -275,6 +275,7 @@ class View:
             return pos
 
     def spawn(self, group, melee):
+
         quit()
         #                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect, rangedimage))
 
@@ -377,13 +378,22 @@ class View:
             if spawning > 0:
                 if spawningCooldown <= 0:
                     if spawning == 1:
-                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect, rangedimage))
-                        radiantCreeps.append(RangedCreep(radiantMidLane, rangedimagerect, rangedimage))
-                        radiantCreeps.append(RangedCreep(radiantEasyLane, rangedimagerect, rangedimage))
+                        radiantCreeps.append(RangedCreep(radiantHardLane))
+                        radiantCreeps.append(RangedCreep(radiantMidLane))
+                        radiantCreeps.append(RangedCreep(radiantEasyLane))
+
+                        direCreeps.append(RangedCreep(direHardLane))
+                        direCreeps.append(RangedCreep(direMidLane))
+                        direCreeps.append(RangedCreep(direEasyLane))
+
                     else:
-                        radiantCreeps.append(MeleeCreep(radiantHardLane, meleeimagerect, meleeimage))
-                        radiantCreeps.append(MeleeCreep(radiantMidLane, meleeimagerect, meleeimage))
-                        radiantCreeps.append(MeleeCreep(radiantEasyLane, meleeimagerect, meleeimage))
+                        radiantCreeps.append(MeleeCreep(radiantHardLane))
+                        radiantCreeps.append(MeleeCreep(radiantMidLane))
+                        radiantCreeps.append(MeleeCreep(radiantEasyLane))
+
+                        direCreeps.append(MeleeCreep(direHardLane))
+                        direCreeps.append(MeleeCreep(direMidLane))
+                        direCreeps.append(MeleeCreep(direEasyLane))
 
                     spawning -= 1
                     spawningCooldown = 20
@@ -392,8 +402,13 @@ class View:
 
             if previousSpawn + 10.0 < playtime:
                 radiantCreeps.append(MeleeCreep(radiantHardLane))
-                radiantCreeps.append(MeleeCreep(radiantMidLane, meleeimagerect, meleeimage))
-                radiantCreeps.append(MeleeCreep(radiantEasyLane, meleeimagerect, meleeimage))
+                radiantCreeps.append(MeleeCreep(radiantMidLane))#, meleeimagerect, meleeimage))
+                radiantCreeps.append(MeleeCreep(radiantEasyLane))#, meleeimagerect, meleeimage))
+
+                direCreeps.append(MeleeCreep(direHardLane))
+                direCreeps.append(MeleeCreep(direMidLane))
+                direCreeps.append(MeleeCreep(direEasyLane))
+
                 previousSpawn = playtime
                 spawning = 4
                 spawningCooldown = 20
@@ -532,7 +547,7 @@ class View:
             for c in direCreeps:
                 if self.enemiesInRange(): # this function records aggro
                     unused_variable = "attack enemies"
-                elif self.buildingsInRange(c, direBuildings):
+                elif self.buildingsInRange(c, radiantBuildings):
                     unused_variable = "attack buildings"
                 else:
                     # find out where the creep is heading
@@ -548,12 +563,12 @@ class View:
                     oldPos = c.pos
                     c.move()
                     # the move might be blocked! check if it's possible:'
-                    if self.collision(c, c.pos, direCreeps, radiantCreeps):
+                    if self.collision(c, c.pos, radiantCreeps, direCreeps):
                         c.pos = oldPos # just stand still
 
                 screen.blit(c.image, c.pos)
 
-                self.drawHpBar(screen, c, green)
+                self.drawHpBar(screen, c, red)
 
             n += 1
 
