@@ -61,12 +61,13 @@ class Creep:
         self.attackCooldown = 10
         self.currentAttackCooldown = 0
         self.creepType = creepType
-        self.radius = 5
+        self.radius = 10
         self.randomDirection = rand.sample([-1,1],1)[0]
         self.paused = False
         self.standingStillCounter = 0
         self.image = image
         self.viewModifier = 0
+        self.alive = True
 
     def resetAttackCooldown(self):
         self.readyToAttack = False
@@ -108,6 +109,12 @@ class Creep:
 
             self.pos = (self.pos[0] + movex, self.pos[1] + movey)
             #print(str(self.pos) + " " + str(movex) + " " + str(movey))
+
+    def damage(self, dam):
+        self.hp -= dam
+        if self.hp <= 0:
+            self.alive = False
+
 
 class MeleeCreep(Creep):
 
@@ -227,7 +234,14 @@ class View:
     def dist(self, p, q):
         return math.sqrt((p[0] - q[0]) ** 2+(p[1] - q[1]) ** 2)
 
-    def enemiesInRange(self):
+    def inRange(self, creep, targets):
+        for t in targets:
+            if t.alive:
+               if self.dist(creep.pos, t.pos) <= creep.attackRange:
+                    self.attack(creep, t)
+                    if not t.alive:
+                        targets.remove(t)
+                    return True
         return False
 
     def buildingsInRange(self, creep, buildings):
@@ -291,6 +305,9 @@ class View:
         black = (0,0,0)
         pink = (155,100,100)
         mygreen = (0, 135, 0)
+
+        spawnInterval = 20.0
+
 
         w = 1280
         h = 720
@@ -400,7 +417,7 @@ class View:
                 else:
                     spawningCooldown -= 1
 
-            if previousSpawn + 10.0 < playtime:
+            if previousSpawn + spawnInterval < playtime:
                 radiantCreeps.append(MeleeCreep(radiantHardLane))
                 radiantCreeps.append(MeleeCreep(radiantMidLane))#, meleeimagerect, meleeimage))
                 radiantCreeps.append(MeleeCreep(radiantEasyLane))#, meleeimagerect, meleeimage))
@@ -426,7 +443,7 @@ class View:
                         view = (view + 1) % 4
 
             screen.fill(black)
-            #screen.blit(background_image, (235, -55))
+            screen.blit(background_image, (235, -55))
 
             if view == 0 or view ==1:
                 self.drawLane(screen, radiantHardLane, (1, 6, 12, 19))
@@ -449,7 +466,7 @@ class View:
 
 
             for c in radiantCreeps:
-                if self.enemiesInRange(): # this function records aggro
+                if self.inRange(c, direCreeps): # this function records aggro
                     unused_variable = "attack enemies"
                 elif self.buildingsInRange(c, direBuildings):
                     unused_variable = "attack buildings"
@@ -545,7 +562,7 @@ class View:
                 self.drawHpBar(screen, c, green)
 
             for c in direCreeps:
-                if self.enemiesInRange(): # this function records aggro
+                if self.inRange(c, radiantCreeps): # this function records aggro
                     unused_variable = "attack enemies"
                 elif self.buildingsInRange(c, radiantBuildings):
                     unused_variable = "attack buildings"
