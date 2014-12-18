@@ -13,6 +13,7 @@ class Building:
         self.regen = 1
         self.canAttack = False
         self.pos = pos
+        self.offsetPos = pos
         self.radius = 10
         self.rect = rect
         self.image = image
@@ -53,9 +54,12 @@ class Creep:
         self.hp = 300
         self.hpmax = self.hp
         self.attack = 10
+        self.maxAttack = 23
+        self.minAttack = 19
         self.pathPos = 0
         self.pos = path[0]
         self.prevPos = self.pos #used for checking if the creep is stuck
+        self.offsetPos = self.pos
         self.attackRange = 5
         self.readyToAttack = True
         self.attackCooldown = 10
@@ -68,6 +72,7 @@ class Creep:
         self.image = image
         self.viewModifier = 0
         self.alive = True
+        self.offset = 0
 
     def resetAttackCooldown(self):
         self.readyToAttack = False
@@ -78,6 +83,20 @@ class Creep:
             self.currentAttackCooldown -= 1
         if self.currentAttackCooldown == 0:
             self.readyToAttack = True
+        # find out where the creep is heading
+        if len(self.path) > 0:
+            prevPathPos = self.path[self.pathPos-1]
+        if len(self.path) > self.pathPos:
+            targetPathPos = self.path[self.pathPos]
+        else:
+            prevPathPos = self.path[self.pathPos]
+            targetPathPos = self.path[self.pathPos+1]
+        targetx = targetPathPos[0] - prevPathPos[0]
+        targety = targetPathPos[1] - prevPathPos[1]
+        if targetx != 0:
+            self.offsetPos = (self.pos[0], self.pos[1] + self.offset)
+        if targety != 0:
+            self.offsetPos = (self.pos[0] + self.offset, self.pos[1])
 
     def move(self):
         #print("len(self.path):" + str(len(self.path)) + " self.pathPos + 1: " + str(self.pathPos + 1))
@@ -115,6 +134,10 @@ class Creep:
         if self.hp <= 0:
             self.alive = False
 
+    def attack(self):
+        global rand
+        return rand.randrange(self.minAttack, self.maxAttack)
+
 
 class MeleeCreep(Creep):
 
@@ -140,6 +163,9 @@ class RangedCreep(Creep):
         self.hp = 300
         self.image = RangedCreep.rangedimage.convert()
         self.rect = RangedCreep.rangedimagerect
+        self.maxAttack = 26
+        self.minAttack = 21
+
 
 class View:
 
@@ -172,10 +198,10 @@ class View:
 
     def drawHpBar(self, scr, c, col):
         global green, black
-        pygame.draw.rect(scr, black, (c.pos[0] - 1 - c.hpmax/40, c.pos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
+        pygame.draw.rect(scr, black, (c.offsetPos[0] - 1 - c.hpmax/40, c.offsetPos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
 
         if c.hp > 0:
-            pygame.draw.rect(scr, col, (c.pos[0] + 1 - c.hpmax/40, c.pos[1] - c.radius + 1 + 1*c.viewModifier, c.hp/15, 6), 0)
+            pygame.draw.rect(scr, col, (c.offsetPos[0] + 1 - c.hpmax/40, c.offsetPos[1] - c.radius + 1 + 1*c.viewModifier, c.hp/15, 6), 0)
 
     def generateRadiantBuildings(self):
         radiantAncientImage = pygame.image.load("ancient.png").convert()
@@ -260,6 +286,9 @@ class View:
             dest.damage(source.attack)
 
     def collision(self, creep, pos, direCreeps, radiantCreeps):
+        return False
+
+        # NO COLLISION DETECTION IN USE, BECAUSE, WHY NOT?
         for c in direCreeps:
             if id(c) != id(creep):
                 if self.dist(pos, c.pos) <= c.radius:
@@ -288,9 +317,18 @@ class View:
         else:
             return pos
 
-    def spawn(self, group, melee):
+    def spawnCreep(self, group, lane, spawningNo):
+        # spawnCreep(radiantCreeps,RangedCreep(radiantHardLane),spawning)
+        creep = None
+        if spawningNo == 1:
+            creep = RangedCreep(lane)
+        else:
+            creep = MeleeCreep(lane)
+        creep.offset = spawningNo * creep.randomDirection
+        if spawningNo == 4:
+            creep.offset = 0
+        group.append(creep)
 
-        quit()
         #                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect, rangedimage))
 
     def start(self):
@@ -312,7 +350,7 @@ class View:
         w = 1280
         h = 720
         screen_size = (w, h)
-        screen = pygame.display.set_mode(screen_size, pygame.FULLSCREEN)
+        screen = pygame.display.set_mode(screen_size)  #, pygame.FULLSCREEN)
 
         background = pygame.Surface(screen.get_size())
         #background.fill(mygreen)
@@ -384,6 +422,7 @@ class View:
 
         while mainloop:
 
+            # update offsets etc
             for c in radiantCreeps:
                 c.newTurn()
             for c in direCreeps:
@@ -395,7 +434,8 @@ class View:
             if spawning > 0:
                 if spawningCooldown <= 0:
                     if spawning == 1:
-                        radiantCreeps.append(RangedCreep(radiantHardLane))
+                        self.spawnCreep(radiantCreeps, radiantHardLane, spawning)
+                        #radiantCreeps.append(RangedCreep(radiantHardLane))
                         radiantCreeps.append(RangedCreep(radiantMidLane))
                         radiantCreeps.append(RangedCreep(radiantEasyLane))
 
@@ -557,7 +597,7 @@ class View:
                                 c.standingStillCounter += 0
                                 #c.paused = False
 
-                screen.blit(c.image, c.pos)
+                screen.blit(c.image, c.offsetPos)
 
                 self.drawHpBar(screen, c, green)
 
@@ -583,9 +623,11 @@ class View:
                     if self.collision(c, c.pos, radiantCreeps, direCreeps):
                         c.pos = oldPos # just stand still
 
+                # offset creep so they dont stand on top of each other
+
                 screen.blit(c.image, c.pos)
 
-                self.drawHpBar(screen, c, red)
+                self.drawHpBar(screen, c, red) # TODO: also offset hp bar...
 
             n += 1
 
