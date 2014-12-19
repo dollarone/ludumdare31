@@ -18,6 +18,7 @@ class Building:
         self.rect = rect
         self.image = image
         self.viewModifier = viewModifier
+        self.armor = 15
 
     def damage(self, dam):
         self.hp -= dam
@@ -29,13 +30,28 @@ class Lvl1Tower(Building):
     def __init__(self, pos, rect, image, viewModifier=-20, name="Lvl 1 Tower"):
         hp = 1300
         super(Lvl1Tower, self).__init__(pos, hp, rect, image, viewModifier, name)
-        self.attack = 20
         self.canAttack = True
         self.attackRange = 40
         self.readyToAttack = True
+        self.maxAttack = 120
+        self.minAttack = 100
+        self.attackCooldown = 50
+        self.currentAttackCooldown = 0
+        self.armor = 20
 
     def resetAttackCooldown(self):
-        readyToAttack = False
+        self.readyToAttack = False
+        self.currentAttackCooldown = self.attackCooldown
+
+    def attack(self):
+        global rand
+        return rand.randrange(self.minAttack, self.maxAttack)
+
+    def newTurn(self):
+        if self.currentAttackCooldown > 0:
+            self.currentAttackCooldown -= 1
+        if self.currentAttackCooldown == 0:
+            self.readyToAttack = True
 
 class Ancient(Building):
 
@@ -47,13 +63,13 @@ class Ancient(Building):
 
 class Creep:
 
-    def __init__(self, path=[], rect=None, image=None, creepType="Unknown"):
+    def __init__(self, path=[], rect=None, image=None, name="Unknown"):
         global rand
+        self.name = name
         self.path = path
         self.rect = rect
         self.hp = 300
         self.hpmax = self.hp
-        self.attack = 10
         self.maxAttack = 23
         self.minAttack = 19
         self.pathPos = 0
@@ -62,9 +78,8 @@ class Creep:
         self.offsetPos = self.pos
         self.attackRange = 5
         self.readyToAttack = True
-        self.attackCooldown = 10
+        self.attackCooldown = 30
         self.currentAttackCooldown = 0
-        self.creepType = creepType
         self.radius = 10
         self.randomDirection = rand.sample([-1,1],1)[0]
         self.paused = False
@@ -73,6 +88,7 @@ class Creep:
         self.viewModifier = 0
         self.alive = True
         self.offset = 0
+        self.armor = 2
 
     def resetAttackCooldown(self):
         self.readyToAttack = False
@@ -86,8 +102,9 @@ class Creep:
         # find out where the creep is heading
         if len(self.path) > 0:
             prevPathPos = self.path[self.pathPos-1]
-        if len(self.path) > self.pathPos:
-            targetPathPos = self.path[self.pathPos]
+            targetPathPos = prevPathPos
+            if len(self.path) > self.pathPos:
+                targetPathPos = self.path[self.pathPos]
         else:
             prevPathPos = self.path[self.pathPos]
             targetPathPos = self.path[self.pathPos+1]
@@ -165,6 +182,7 @@ class RangedCreep(Creep):
         self.rect = RangedCreep.rangedimagerect
         self.maxAttack = 26
         self.minAttack = 21
+        self.armor = 0
 
 
 class View:
@@ -280,10 +298,18 @@ class View:
 
     def attack(self, source, dest):
         # TODO: armor etc
+        #armor: dmd reduction = ((0.06*armor) - (1 + 0.06 * armor))
+        dmgReduction = ((0.06 * dest.armor) / (1 + 0.06 * dest.armor))
+
 
         if source.readyToAttack:
             source.resetAttackCooldown()
-            dest.damage(source.attack)
+            #print(str(source) + " " + str(source.currentAttackCooldown))
+            atk = source.attack()
+            dmg = atk * (1-dmgReduction)
+            print(str(source.name) + " hitting " + str(atk) + " on " + str(dest.name) + "(with armor " + str(dest.armor) + ") means dmg reduction of " + str(dmgReduction) + " == damage dealt: " + str(dmg))
+
+            dest.damage(dmg)
 
     def collision(self, creep, pos, direCreeps, radiantCreeps):
         return False
@@ -324,8 +350,8 @@ class View:
             creep = RangedCreep(lane)
         else:
             creep = MeleeCreep(lane)
-        creep.offset = spawningNo * creep.randomDirection
-        if spawningNo == 4:
+        creep.offset = 2 * spawningNo * creep.randomDirection
+        if spawningNo == 5:
             creep.offset = 0
         group.append(creep)
 
@@ -416,7 +442,9 @@ class View:
         direBuildings = self.generateDireBuildings()
         radiantBuildings = self.generateRadiantBuildings()
 
-        previousSpawn = -8.0
+        previousSpawn = -10.0
+        spawnInterval = 20.0
+
         spawning = 0
         spawningCooldown = 0
 
@@ -433,24 +461,14 @@ class View:
 
             if spawning > 0:
                 if spawningCooldown <= 0:
-                    if spawning == 1:
-                        self.spawnCreep(radiantCreeps, radiantHardLane, spawning)
-                        #radiantCreeps.append(RangedCreep(radiantHardLane))
-                        radiantCreeps.append(RangedCreep(radiantMidLane))
-                        radiantCreeps.append(RangedCreep(radiantEasyLane))
+                    self.spawnCreep(radiantCreeps, radiantHardLane, spawning)
+                    self.spawnCreep(radiantCreeps, radiantMidLane, spawning)
+                    self.spawnCreep(radiantCreeps, radiantEasyLane, spawning)
+                    #radiantCreeps.append(RangedCreep(radiantHardLane))
 
-                        direCreeps.append(RangedCreep(direHardLane))
-                        direCreeps.append(RangedCreep(direMidLane))
-                        direCreeps.append(RangedCreep(direEasyLane))
-
-                    else:
-                        radiantCreeps.append(MeleeCreep(radiantHardLane))
-                        radiantCreeps.append(MeleeCreep(radiantMidLane))
-                        radiantCreeps.append(MeleeCreep(radiantEasyLane))
-
-                        direCreeps.append(MeleeCreep(direHardLane))
-                        direCreeps.append(MeleeCreep(direMidLane))
-                        direCreeps.append(MeleeCreep(direEasyLane))
+                    self.spawnCreep(direCreeps, direHardLane, spawning)
+                    self.spawnCreep(direCreeps, direMidLane, spawning)
+                    self.spawnCreep(direCreeps, direEasyLane, spawning)
 
                     spawning -= 1
                     spawningCooldown = 20
@@ -458,16 +476,8 @@ class View:
                     spawningCooldown -= 1
 
             if previousSpawn + spawnInterval < playtime:
-                radiantCreeps.append(MeleeCreep(radiantHardLane))
-                radiantCreeps.append(MeleeCreep(radiantMidLane))#, meleeimagerect, meleeimage))
-                radiantCreeps.append(MeleeCreep(radiantEasyLane))#, meleeimagerect, meleeimage))
-
-                direCreeps.append(MeleeCreep(direHardLane))
-                direCreeps.append(MeleeCreep(direMidLane))
-                direCreeps.append(MeleeCreep(direEasyLane))
-
                 previousSpawn = playtime
-                spawning = 4
+                spawning = 5
                 spawningCooldown = 20
 
             for event in pygame.event.get():
@@ -496,11 +506,17 @@ class View:
 
             for b in direBuildings:
                 if b.alive:
+                    if b.canAttack:
+                        b.newTurn()
+                        self.inRange(b, radiantCreeps)
                     screen.blit(b.image, b.pos)
                     self.drawHpBar(screen, b, red)
                 #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
             for b in radiantBuildings:
                 if b.alive:
+                    if b.canAttack:
+                        b.newTurn()
+                        self.inRange(b, direCreeps)
                     screen.blit(b.image, b.pos)
                     self.drawHpBar(screen, b, green)
 
@@ -625,7 +641,7 @@ class View:
 
                 # offset creep so they dont stand on top of each other
 
-                screen.blit(c.image, c.pos)
+                screen.blit(c.image, c.offsetPos)
 
                 self.drawHpBar(screen, c, red) # TODO: also offset hp bar...
 
