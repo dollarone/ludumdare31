@@ -25,11 +25,11 @@ class Building:
         if self.hp <= 0:
             self.alive = False
 
-class Lvl1Tower(Building):
+class Tower(Building):
 
-    def __init__(self, pos, rect, image, viewModifier=-20, name="Lvl 1 Tower"):
+    def __init__(self, pos, rect, image, viewModifier=-20, name="Tower"):
         hp = 1300
-        super(Lvl1Tower, self).__init__(pos, hp, rect, image, viewModifier, name)
+        super(Tower, self).__init__(pos, hp, rect, image, viewModifier, name)
         self.canAttack = True
         self.attackRange = 40
         self.readyToAttack = True
@@ -52,6 +52,13 @@ class Lvl1Tower(Building):
             self.currentAttackCooldown -= 1
         if self.currentAttackCooldown == 0:
             self.readyToAttack = True
+
+class Lvl1Tower(Tower):
+
+    def __init__(self, pos, rect, image, viewModifier=-20, name="Lvl 1 Tower"):
+        super(Lvl1Tower, self).__init__(pos, rect, image, viewModifier, name)
+
+
 
 class Ancient(Building):
 
