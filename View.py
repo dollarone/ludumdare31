@@ -28,16 +28,18 @@ class Building:
 class Tower(Building):
 
     def __init__(self, pos, rect, image, viewModifier=-20, name="Tower"):
-        hp = 1300
+        hp = 1600
         super(Tower, self).__init__(pos, hp, rect, image, viewModifier, name)
         self.canAttack = True
         self.attackRange = 40
         self.readyToAttack = True
-        self.maxAttack = 120
-        self.minAttack = 100
+        self.maxAttack = 122
+        self.minAttack = 182
         self.attackCooldown = 50
         self.currentAttackCooldown = 0
-        self.armor = 20
+        self.armor = 25
+        self.bounty = 280
+        self.bountyDenied = 140
 
     def resetAttackCooldown(self):
         self.readyToAttack = False
@@ -57,6 +59,53 @@ class Lvl1Tower(Tower):
 
     def __init__(self, pos, rect, image, viewModifier=-20, name="Lvl 1 Tower"):
         super(Lvl1Tower, self).__init__(pos, rect, image, viewModifier, name)
+        self.hp = 1300
+        self.hpmax = self.hp
+        self.armor = 20
+        self.maxAttack = 120
+        self.minAttack = 100
+        self.attackCooldown = 60
+        self.bounty = 160
+        self.bountyDenied = 80
+
+class Lvl2Tower(Tower):
+
+    def __init__(self, pos, rect, image, viewModifier=-20, name="Lvl 2 Tower"):
+        super(Lvl2Tower, self).__init__(pos, rect, image, viewModifier, name)
+        self.hp = 1600
+        self.hpmax = self.hp
+        self.armor = 25
+        self.maxAttack = 140
+        self.minAttack = 120
+        self.attackCooldown = 57 # BAT = 0.95
+        self.bounty = 200
+        self.bountyDenied = 100
+
+class Lvl3Tower(Tower):
+
+    def __init__(self, pos, rect, image, viewModifier=-20, name="Lvl 3 Tower"):
+        super(Lvl3Tower, self).__init__(pos, rect, image, viewModifier, name)
+        self.hp = 1600
+        self.hpmax = self.hp
+        self.armor = 25
+        self.maxAttack = 182
+        self.minAttack = 122
+        self.attackCooldown = 57
+        self.bounty = 240
+        self.bountyDenied = 120
+
+class Lvl4Tower(Tower):
+
+    def __init__(self, pos, rect, image, viewModifier=-20, name="Lvl 4 Tower"):
+        super(Lvl4Tower, self).__init__(pos, rect, image, viewModifier, name)
+        self.hp = 1600
+        self.hpmax = self.hp
+        self.armor = 30
+        self.maxAttack = 182
+        self.minAttack = 122
+        self.attackCooldown = 57
+        self.bounty = 280
+        self.bountyDenied = 140
 
 
 
@@ -68,8 +117,7 @@ class Ancient(Building):
         self.radius = 100
         self.regen = 3
 
-class Creep:
-
+class Unit:
     def __init__(self, path=[], rect=None, image=None, name="Unknown"):
         global rand
         self.name = name
@@ -85,7 +133,7 @@ class Creep:
         self.offsetPos = self.pos
         self.attackRange = 5
         self.readyToAttack = True
-        self.attackCooldown = 30
+        self.attackCooldown = 60
         self.currentAttackCooldown = 0
         self.radius = 10
         self.randomDirection = rand.sample([-1,1],1)[0]
@@ -163,6 +211,34 @@ class Creep:
         return rand.randrange(self.minAttack, self.maxAttack)
 
 
+class Hero(Unit):
+
+    def __init__(self, path=[], rect=None, image=None, name="Unknown"):
+        super(Hero, self).__init__(path, rect, image, name)
+
+
+class Ursa(Hero):
+    heroimage = pygame.image.load("ursa.png")
+    heroimage.set_colorkey(( 255, 255, 255))
+    heroimagerect = heroimage.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Ursa"):
+        super(Ursa, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = Ursa.heroimage.convert()
+        self.rect = Ursa.heroimagerect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+class Creep(Unit):
+    def __init__(self, path=[], rect=None, image=None, name="Unknown"):
+        super(Creep, self).__init__(path, rect, image, name)
+
+
 class MeleeCreep(Creep):
 
     meleeimage = pygame.image.load("meleecreep.png")    # didn't convert. is that bad?'
@@ -195,11 +271,12 @@ class RangedCreep(Creep):
 class View:
 
     def __init__(self):
-        global font, rand
+        global font, rand, creepNo
         pygame.init()
         font = pygame.font.SysFont('Arial', 16)
         rand = random.Random()
         rand.seed(2)
+        creepNo = 1
 
     def addRect(self, scr, col, pos, size):
         pygame.draw.rect(scr, col, (pos[0], pos[1], size[0], size[1]), 1)
@@ -239,19 +316,19 @@ class View:
         buildings = []
         buildings.append(Ancient((300, 660), radiantAncientImageRect, radiantAncientImage, 150, "Radiant Ancient"))
         #easy
-        buildings.append(Lvl1Tower((320, 640), radiantTowerImageRect, radiantTowerImage)) #lvl4
-        buildings.append(Lvl1Tower((320, 540), radiantTowerImageRect, radiantTowerImage))
-        buildings.append(Lvl1Tower((320, 420), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl4Tower((320, 640), radiantTowerImageRect, radiantTowerImage)) #lvl4
+        buildings.append(Lvl3Tower((320, 540), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl2Tower((320, 420), radiantTowerImageRect, radiantTowerImage))
         buildings.append(Lvl1Tower((320, 280), radiantTowerImageRect, radiantTowerImage))
         #mid:
-        buildings.append(Lvl1Tower((340, 640), radiantTowerImageRect, radiantTowerImage, -10))
-        buildings.append(Lvl1Tower((420, 560), radiantTowerImageRect, radiantTowerImage))
-        buildings.append(Lvl1Tower((500, 480), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl4Tower((340, 640), radiantTowerImageRect, radiantTowerImage, -10))
+        buildings.append(Lvl3Tower((420, 560), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl2Tower((500, 480), radiantTowerImageRect, radiantTowerImage))
         buildings.append(Lvl1Tower((580, 400), radiantTowerImageRect, radiantTowerImage))
         #hard:
-        buildings.append(Lvl1Tower((340, 660), radiantTowerImageRect, radiantTowerImage))
-        buildings.append(Lvl1Tower((440, 660), radiantTowerImageRect, radiantTowerImage))
-        buildings.append(Lvl1Tower((560, 660), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl4Tower((340, 660), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl3Tower((440, 660), radiantTowerImageRect, radiantTowerImage))
+        buildings.append(Lvl2Tower((560, 660), radiantTowerImageRect, radiantTowerImage))
         buildings.append(Lvl1Tower((800, 660), radiantTowerImageRect, radiantTowerImage))
         return buildings
 
@@ -266,19 +343,19 @@ class View:
         buildings = []
         buildings.append(Ancient((940, 20), direAncientImageRect, direAncientImage, 80, "Dire Ancient"))
         #easy:
-        buildings.append(Lvl1Tower((920, 40), direTowerImageRect, direTowerImage)) #lvl4
-        buildings.append(Lvl1Tower((820, 40), direTowerImageRect, direTowerImage))
-        buildings.append(Lvl1Tower((700, 40), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl4Tower((920, 40), direTowerImageRect, direTowerImage)) #lvl4
+        buildings.append(Lvl3Tower((820, 40), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl2Tower((700, 40), direTowerImageRect, direTowerImage))
         buildings.append(Lvl1Tower((460, 40), direTowerImageRect, direTowerImage))
         #mid:
-        buildings.append(Lvl1Tower((920, 60), direTowerImageRect, direTowerImage, -10))
-        buildings.append(Lvl1Tower((840, 140), direTowerImageRect, direTowerImage))
-        buildings.append(Lvl1Tower((760, 220), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl4Tower((920, 60), direTowerImageRect, direTowerImage, -10))
+        buildings.append(Lvl3Tower((840, 140), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl2Tower((760, 220), direTowerImageRect, direTowerImage))
         buildings.append(Lvl1Tower((680, 300), direTowerImageRect, direTowerImage))
         #hard:
-        buildings.append(Lvl1Tower((940, 60), direTowerImageRect, direTowerImage))
-        buildings.append(Lvl1Tower((940, 160), direTowerImageRect, direTowerImage))
-        buildings.append(Lvl1Tower((940, 280), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl4Tower((940, 60), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl3Tower((940, 160), direTowerImageRect, direTowerImage))
+        buildings.append(Lvl2Tower((940, 280), direTowerImageRect, direTowerImage))
         buildings.append(Lvl1Tower((940, 420), direTowerImageRect, direTowerImage))
         return buildings
 
@@ -314,9 +391,12 @@ class View:
             #print(str(source) + " " + str(source.currentAttackCooldown))
             atk = source.attack()
             dmg = atk * (1-dmgReduction)
-            print(str(source.name) + " hitting " + str(atk) + " on " + str(dest.name) + "(with armor " + str(dest.armor) + ") means dmg reduction of " + str(dmgReduction) + " == damage dealt: " + str(dmg))
-
             dest.damage(dmg)
+
+            print(str(pygame.time.get_ticks() / 1000) + ": " + str(source.name) +
+            " hitting " + str(atk) + " on " + str(dest.name) + "(with armor " +
+            str(dest.armor) + ") means dmg reduction of " + str(dmgReduction) +
+            " == damage dealt: " + str(dmg) + " health remaining: " + str(dest.hp))
 
     def collision(self, creep, pos, direCreeps, radiantCreeps):
         return False
@@ -351,18 +431,29 @@ class View:
             return pos
 
     def spawnCreep(self, group, lane, spawningNo):
-        # spawnCreep(radiantCreeps,RangedCreep(radiantHardLane),spawning)
+        global creepNo
         creep = None
         if spawningNo == 1:
             creep = RangedCreep(lane)
+            creep.name = "RangedCreep no " + str(creepNo)
         else:
             creep = MeleeCreep(lane)
+            creep.name = "MeleeCreep no " + str(creepNo)
         creep.offset = 2 * spawningNo * creep.randomDirection
         if spawningNo == 5:
             creep.offset = 0
         group.append(creep)
+        creepNo += 1
 
         #                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect, rangedimage))
+
+    def spawnHero(self, group, lane, spawningNo):
+        # spawnCreep(radiantCreeps,RangedCreep(radiantHardLane),spawning)
+        hero = None
+        hero = Ursa(lane)
+        hero.offset = 2 * spawningNo * hero.randomDirection
+
+        group.append(hero)
 
     def start(self):
         global red, green, blue, darkBlue, white, black, pink, mygreen, font, rand
@@ -400,7 +491,7 @@ class View:
         #rangedimagerect = rangedimage.get_rect()
 
         clock = pygame.time.Clock()
-        FPS = 60
+        FPS = 10
         playtime = 0.0
         mainloop = True
 
@@ -443,6 +534,9 @@ class View:
         radiantCreeps = []
         direCreeps = []
 
+        radiantHeroes = []
+        direHeroes = []
+
         n = 0
         FPS = 60
 
@@ -455,6 +549,7 @@ class View:
         spawning = 0
         spawningCooldown = 0
 
+
         while mainloop:
 
             # update offsets etc
@@ -462,6 +557,11 @@ class View:
                 c.newTurn()
             for c in direCreeps:
                 c.newTurn()
+
+            for h in radiantHeroes:
+                h.newTurn()
+            for h in direHeroes:
+                h.newTurn()
 
             milliseconds = clock.tick(FPS)
             playtime += milliseconds / 1000.0
@@ -498,6 +598,13 @@ class View:
                     elif event.key == pygame.K_t:
                         # toggle view
                         view = (view + 1) % 4
+                    elif event.key == pygame.K_1:
+                        self.spawnHero(radiantHeroes, radiantHardLane, spawning)
+                    elif event.key == pygame.K_2:
+                        self.spawnHero(radiantHeroes, radiantMidLane, spawning)
+                    elif event.key == pygame.K_3:
+                        self.spawnHero(radiantHeroes, radiantEasyLane, spawning)
+
 
             screen.fill(black)
             screen.blit(background_image, (235, -55))
@@ -515,7 +622,10 @@ class View:
                 if b.alive:
                     if b.canAttack:
                         b.newTurn()
-                        self.inRange(b, radiantCreeps)
+                        if self.inRange(b, radiantHeroes):
+                            unused_variable = "attack enemies"
+                        elif self.inRange(b, radiantCreeps):
+                            unused_variable = "attack enemies"
                     screen.blit(b.image, b.pos)
                     self.drawHpBar(screen, b, red)
                 #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
@@ -523,13 +633,18 @@ class View:
                 if b.alive:
                     if b.canAttack:
                         b.newTurn()
-                        self.inRange(b, direCreeps)
+                        if self.inRange(b, direHeroes):
+                            unused_variable = "attack enemies"
+                        elif self.inRange(b, direCreeps):
+                            unused_variable = "attack enemies"
                     screen.blit(b.image, b.pos)
                     self.drawHpBar(screen, b, green)
 
 
             for c in radiantCreeps:
-                if self.inRange(c, direCreeps): # this function records aggro
+                if self.inRange(c, direHeroes): # this function records aggro
+                    unused_variable = "attack enemies"
+                elif self.inRange(c, direCreeps): # this function records aggro
                     unused_variable = "attack enemies"
                 elif self.buildingsInRange(c, direBuildings):
                     unused_variable = "attack buildings"
@@ -625,8 +740,10 @@ class View:
                 self.drawHpBar(screen, c, green)
 
             for c in direCreeps:
-                if self.inRange(c, radiantCreeps): # this function records aggro
-                    unused_variable = "attack enemies"
+                if self.inRange(c, radiantHeroes): # this function records aggro
+                    unused_variable = "attack enemy heroes"
+                elif self.inRange(c, radiantCreeps): # this function records aggro
+                    unused_variable = "attack enemy creeps"
                 elif self.buildingsInRange(c, radiantBuildings):
                     unused_variable = "attack buildings"
                 else:
@@ -651,6 +768,37 @@ class View:
                 screen.blit(c.image, c.offsetPos)
 
                 self.drawHpBar(screen, c, red) # TODO: also offset hp bar...
+
+            for h in radiantHeroes:
+                if self.inRange(h, direHeroes):
+                    unused_variable = "attack enemy heroes"
+                elif self.inRange(h, direCreeps): # this function records aggro
+                    unused_variable = "attack enemy creeps"
+                elif self.buildingsInRange(h, direBuildings):
+                    unused_variable = "attack buildings"
+                else:
+                    # find out where the creep is heading
+                    if len(h.path) > 0:
+                        prevPathPos = h.path[h.pathPos-1]
+                        if len(h.path) > h.pathPos:
+                            targetPathPos = h.path[h.pathPos]
+                    else:
+                        prevPathPos = h.path[h.pathPos]
+                        targetPathPos = h.path[h.pathPos+1]
+                    targetx = targetPathPos[0] - prevPathPos[0]
+                    targety = targetPathPos[1] - prevPathPos[1]
+                    oldPos = h.pos
+                    h.move()
+                    # the move might be blocked! check if it's possible:'
+                    if self.collision(h, h.pos, radiantCreeps, direCreeps):
+                        h.pos = oldPos # just stand still
+
+                # offset creep so they dont stand on top of each other
+
+                screen.blit(h.image, h.offsetPos)
+
+                self.drawHpBar(screen, h, green) # TODO: also offset hp bar...
+
 
             n += 1
 
