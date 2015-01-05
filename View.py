@@ -537,6 +537,8 @@ class View:
         radiantHeroes = []
         direHeroes = []
 
+        numberOfCreepsPerWave = 4
+
         n = 0
         FPS = 60
 
@@ -584,7 +586,7 @@ class View:
 
             if previousSpawn + spawnInterval < playtime:
                 previousSpawn = playtime
-                spawning = 5
+                spawning = numberOfCreepsPerWave
                 spawningCooldown = 20
 
             for event in pygame.event.get():
