@@ -1,6 +1,7 @@
 import math
 import pygame
 import random
+import inspect
 from pygame.locals import *
 
 class Building:
@@ -9,7 +10,7 @@ class Building:
         self.name = name
         self.hp = hp
         self.hpmax = self.hp
-        self.alive = True
+        self.status = states.ALIVE
         self.regen = 1
         self.canAttack = False
         self.pos = pos
@@ -23,7 +24,7 @@ class Building:
     def damage(self, dam):
         self.hp -= dam
         if self.hp <= 0:
-            self.alive = False
+            self.status = states.DEAD
 
 class Tower(Building):
 
@@ -128,7 +129,10 @@ class Unit:
         self.maxAttack = 23
         self.minAttack = 19
         self.pathPos = 0
-        self.pos = path[0]
+        if len(path) > 0:
+            self.pos = path[0]
+        else:
+            self.pos = None
         self.prevPos = self.pos #used for checking if the creep is stuck
         self.offsetPos = self.pos
         self.attackRange = 5
@@ -141,7 +145,7 @@ class Unit:
         self.standingStillCounter = 0
         self.image = image
         self.viewModifier = 0
-        self.alive = True
+        self.status = states.ALIVE
         self.offset = 0
         self.armor = 2
 
@@ -150,25 +154,26 @@ class Unit:
         self.currentAttackCooldown = self.attackCooldown
 
     def newTurn(self):
-        if self.currentAttackCooldown > 0:
-            self.currentAttackCooldown -= 1
-        if self.currentAttackCooldown == 0:
-            self.readyToAttack = True
-        # find out where the creep is heading
-        if len(self.path) > 0:
-            prevPathPos = self.path[self.pathPos-1]
-            targetPathPos = prevPathPos
-            if len(self.path) > self.pathPos:
-                targetPathPos = self.path[self.pathPos]
-        else:
-            prevPathPos = self.path[self.pathPos]
-            targetPathPos = self.path[self.pathPos+1]
-        targetx = targetPathPos[0] - prevPathPos[0]
-        targety = targetPathPos[1] - prevPathPos[1]
-        if targetx != 0:
-            self.offsetPos = (self.pos[0], self.pos[1] + self.offset)
-        if targety != 0:
-            self.offsetPos = (self.pos[0] + self.offset, self.pos[1])
+        if self.status == states.ALIVE:
+            if self.currentAttackCooldown > 0:
+                self.currentAttackCooldown -= 1
+            if self.currentAttackCooldown == 0:
+                self.readyToAttack = True
+            # find out where the creep is heading
+            if len(self.path) > 0:
+                prevPathPos = self.path[self.pathPos-1]
+                targetPathPos = prevPathPos
+                if len(self.path) > self.pathPos:
+                    targetPathPos = self.path[self.pathPos]
+            else:
+                prevPathPos = self.path[self.pathPos]
+                targetPathPos = self.path[self.pathPos+1]
+            targetx = targetPathPos[0] - prevPathPos[0]
+            targety = targetPathPos[1] - prevPathPos[1]
+            if targetx != 0:
+                self.offsetPos = (self.pos[0], self.pos[1] + self.offset)
+            if targety != 0:
+                self.offsetPos = (self.pos[0] + self.offset, self.pos[1])
 
     def move(self):
         #print("len(self.path):" + str(len(self.path)) + " self.pathPos + 1: " + str(self.pathPos + 1))
@@ -204,35 +209,207 @@ class Unit:
     def damage(self, dam):
         self.hp -= dam
         if self.hp <= 0:
-            self.alive = False
+            self.status = states.DEAD
 
     def attack(self):
-        global rand
+#        global rand
         return rand.randrange(self.minAttack, self.maxAttack)
 
-
 class Hero(Unit):
-
     def __init__(self, path=[], rect=None, image=None, name="Unknown"):
         super(Hero, self).__init__(path, rect, image, name)
+        self.status = states.QUEUING
+        self.respawn_timer = 110
+
+    def damage(self, dam):
+        self.hp -= dam
+        if self.hp <= 0:
+            self.status = states.DEAD
+            self.respawn_timer = 200
+
+    def newTurn(self):
+        super(Hero, self).newTurn()
+
+        print(self.name + " " + str(self.status))
+
+        if self.respawn_timer <= 0 and self.status == states.DEAD:
+            self.reset()
+        if self.status == states.DEAD:
+            self.respawn_timer -= 1
+            print(self.name + " " + str(self.respawn_timer))
+
+
+    def reset(self):
+        self.status = states.QUEUING
+
+    def spawnHero(self, lane):
+        self.status = states.ALIVE
+        self.hp = self.hpmax
+        self.path = lane
+        self.pos = self.path[0]
+#        self.offset = 2 * self.randomDirection
+        self.prevPos = self.pos
+        self.offsetPos = self.pos
+        self.pathPos = 0
+
+        self.readyToAttack = True
+        self.attackCooldown = 60
+        self.currentAttackCooldown = 0
+        self.paused = False
+
+        self.standingStillCounter = 0
+
+        self.viewModifier = 0
+
+        self.offset = 0
+        self.armor = 2
+
+
 
 
 class Ursa(Hero):
-    heroimage = pygame.image.load("ursa.png")
-    heroimage.set_colorkey(( 255, 255, 255))
-    heroimagerect = heroimage.get_rect()
+    hero_image = pygame.image.load("ursa.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("ursa_profile.png")
+    hero_profile.set_colorkey(( 255, 255, 255))
+    hero_profile_rect = hero_image.get_rect()
 
     def __init__(self, path=[], rect=None, image=None, name="Ursa"):
         super(Ursa, self).__init__(path, rect, image, name)
         self.attackRange = 20
         self.hp = 587
         self.hpmax = 587
-        self.image = Ursa.heroimage.convert()
-        self.rect = Ursa.heroimagerect
+        self.image = Ursa.hero_image.convert()
+        self.rect = Ursa.hero_image_rect
+        self.profile = Ursa.hero_profile.convert()
+        self.profile_rect = Ursa.hero_profile_rect
         self.maxAttack = 49
         self.minAttack = 45
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
+
+
+class Sven(Hero):
+    hero_image = pygame.image.load("sven.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("sven_profile.png")
+    hero_profile.set_colorkey(( 255, 255, 255))
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Sven"):
+        super(Sven, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = Sven.hero_image.convert()
+        self.rect = Sven.hero_image_rect
+        self.profile = Sven.hero_profile.convert()
+        self.profile_rect = Sven.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+
+class Lichking(Hero):
+    hero_image = pygame.image.load("lichking.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("lichking_profile.png")
+    hero_profile.set_colorkey(( 255, 255, 255))
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Lichking"):
+        super(Lichking, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = Lichking.hero_image.convert()
+        self.rect = Lichking.hero_image_rect
+        self.profile = Lichking.hero_profile.convert()
+        self.profile_rect = Lichking.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+
+class Tidehunter(Hero):
+    hero_image = pygame.image.load("tidehunter.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("tidehunter_profile.png")
+    hero_profile.set_colorkey(( 255, 255, 255))
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Tidehunter"):
+        super(Tidehunter, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = Tidehunter.hero_image.convert()
+        self.rect = Tidehunter.hero_image_rect
+        self.profile = Tidehunter.hero_profile.convert()
+        self.profile_rect = Tidehunter.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+
+class Furion(Hero):
+    hero_image = pygame.image.load("furion.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("furion_profile.png")
+    hero_profile.set_colorkey(( 255, 255, 255))
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Furion"):
+        super(Furion, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = Furion.hero_image.convert()
+        self.rect = Furion.hero_image_rect
+        self.profile = Furion.hero_profile.convert()
+        self.profile_rect = Furion.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+
+class Sandking(Hero):
+    hero_image = pygame.image.load("sandking.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("sandking_profile.png")
+    hero_profile.set_colorkey(( 255, 255, 255))
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Sand King"):
+        super(Sandking, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = Sandking.hero_image.convert()
+        self.rect = Sandking.hero_image_rect
+        self.profile = Sandking.hero_profile.convert()
+        self.profile_rect = Sandking.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
 
 class Creep(Unit):
     def __init__(self, path=[], rect=None, image=None, name="Unknown"):
@@ -241,37 +418,43 @@ class Creep(Unit):
 
 class MeleeCreep(Creep):
 
-    meleeimage = pygame.image.load("meleecreep.png")    # didn't convert. is that bad?'
-    meleeimage.set_colorkey(( 255, 255, 255))
-    meleeimagerect = meleeimage.get_rect()
+    melee_image = pygame.image.load("meleecreep.png")    # didn't convert. is that bad?'
+    melee_image.set_colorkey(( 255, 255, 255))
+    melee_image_rect = melee_image.get_rect()
 
     def __init__(self, path, rect=None, image=None):
         super(MeleeCreep, self).__init__(path, rect, image, "Melee Creep")
         self.hp = 550
         self.hpmax = 550
-        self.image = MeleeCreep.meleeimage.convert()
-        self.rect = MeleeCreep.meleeimagerect
+        self.image = MeleeCreep.melee_image.convert()
+        self.rect = MeleeCreep.melee_image_rect
 
 class RangedCreep(Creep):
-    rangedimage = pygame.image.load("rangedcreep2.png")
-    rangedimage.set_colorkey((255, 255, 255))
-    rangedimagerect = rangedimage.get_rect()
+    ranged_image = pygame.image.load("rangedcreep2.png")
+    ranged_image.set_colorkey((255, 255, 255))
+    ranged_image_rect = ranged_image.get_rect()
 
     def __init__(self, path, rect=None, image=None):
         super(RangedCreep, self).__init__(path, rect, image, "Ranged Creep")
         self.attackRange = 20
         self.hp = 300
-        self.image = RangedCreep.rangedimage.convert()
-        self.rect = RangedCreep.rangedimagerect
+        self.image = RangedCreep.ranged_image.convert()
+        self.rect = RangedCreep.ranged_image_rect
         self.maxAttack = 26
         self.minAttack = 21
         self.armor = 0
 
 
+
+def enum(**enums):
+    return type('Enum', (), enums)
+
 class View:
 
     def __init__(self):
-        global font, rand, creepNo
+        global font, rand, creepNo, states
+        states = enum(QUEUING=1, ALIVE=2, DEAD=3)
+
         pygame.init()
         font = pygame.font.SysFont('Arial', 16)
         rand = random.Random()
@@ -299,7 +482,7 @@ class View:
             n += 1
 
     def drawHpBar(self, scr, c, col):
-        global green, black
+        #global green, black
         pygame.draw.rect(scr, black, (c.offsetPos[0] - 1 - c.hpmax/40, c.offsetPos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
 
         if c.hp > 0:
@@ -359,22 +542,32 @@ class View:
         buildings.append(Lvl1Tower((940, 420), direTowerImageRect, direTowerImage))
         return buildings
 
+    def generateRadiantHeroes(self, heroes):
+        heroes.append(Ursa())
+        heroes.append(Sven())
+        heroes.append(Tidehunter())
+        hero = Sandking()
+        hero.status = states.DEAD
+        heroes.append(hero)
+        heroes.append(Lichking())
+
     def dist(self, p, q):
         return math.sqrt((p[0] - q[0]) ** 2+(p[1] - q[1]) ** 2)
 
     def inRange(self, creep, targets):
         for t in targets:
-            if t.alive:
-               if self.dist(creep.pos, t.pos) <= creep.attackRange:
+            if t.status == states.ALIVE:
+                #print(str(t.status))
+                if self.dist(creep.pos, t.pos) <= creep.attackRange:
                     self.attack(creep, t)
-                    if not t.alive:
+                    if t.status == states.DEAD and not issubclass(t.__class__, Hero): ## YURGH
                         targets.remove(t)
                     return True
         return False
 
     def buildingsInRange(self, creep, buildings):
         for b in buildings:
-            if b.alive:
+            if b.status == states.ALIVE:
                if self.dist(creep.pos, b.pos) <= creep.attackRange:
                     self.attack(creep, b)
                     return True
@@ -447,13 +640,33 @@ class View:
 
         #                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect, rangedimage))
 
-    def spawnHero(self, group, lane, spawningNo):
-        # spawnCreep(radiantCreeps,RangedCreep(radiantHardLane),spawning)
-        hero = None
-        hero = Ursa(lane)
-        hero.offset = 2 * spawningNo * hero.randomDirection
 
-        group.append(hero)
+    def drawPortrait(self, screen, hero, side, hero_number, alphaMod=128):
+        if hero.status == states.ALIVE:
+            hero.profile.set_alpha(255)
+            tmp = hero.profile
+        elif hero.status == states.QUEUING:
+            hero.profile.set_alpha(180 + alphaMod)
+            tmp = hero.profile
+        elif hero.status == states.DEAD:
+            tmp = self.get_alpha_surface(hero.profile, 80, 255, 128, 128, pygame.BLEND_RGBA_MULT)
+
+        screen.blit(tmp, (1, hero_number * 144), Rect(1, 1, 240, 144)) #256, 144
+
+        #pygame.draw.rect(scr, black, (c.offsetPos[0] - 1 - c.hpmax/40, c.offsetPos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
+
+    def get_alpha_surface(self, surf, alpha=128, red=128, green=128, blue=128, mode=pygame.BLEND_RGBA_MULT):
+        """
+        Allocate a new surface with user-defined values (0-255)
+        for red, green, blue and alpha.
+
+        Thanks to Claudio Canepa <ccanepacc@gmail.com>.
+        """
+
+        tmp = pygame.Surface( surf.get_size(), pygame.SRCALPHA, 32)
+        tmp.fill( (red,green,blue,alpha) )
+        tmp.blit(surf, (0,0), surf.get_rect(), mode)
+        return tmp
 
     def start(self):
         global red, green, blue, darkBlue, white, black, pink, mygreen, font, rand
@@ -551,8 +764,24 @@ class View:
         spawning = 0
         spawningCooldown = 0
 
+        self.generateRadiantHeroes(radiantHeroes)
+
+        print(str(radiantHeroes))
+        for h in radiantHeroes:
+            print(str(h.name) + str(h.status))
+
+        #self.spawnHero(radiantHeroes, radiantHardLane, spawning)
+
+        nextHero = 0
+        inc = 0
+
+        alphaMod = list(range(-25, 25, 2))
+        #alphaMod.extend(list(range(25, -25, 2)))
+        alphaMod.extend(list(reversed(range(-25, 25, 2))))
+        print(str(alphaMod))
 
         while mainloop:
+            inc += 1
 
             # update offsets etc
             for c in radiantCreeps:
@@ -601,11 +830,21 @@ class View:
                         # toggle view
                         view = (view + 1) % 4
                     elif event.key == pygame.K_1:
-                        self.spawnHero(radiantHeroes, radiantHardLane, spawning)
+                        for h in radiantHeroes:
+                            if h.status == states.QUEUING:
+                                h.spawnHero(radiantHardLane)
+                                break
                     elif event.key == pygame.K_2:
-                        self.spawnHero(radiantHeroes, radiantMidLane, spawning)
+                        for h in radiantHeroes:
+                            if h.status == states.QUEUING:
+                                h.spawnHero(radiantMidLane)
+                                break
                     elif event.key == pygame.K_3:
-                        self.spawnHero(radiantHeroes, radiantEasyLane, spawning)
+                        for h in radiantHeroes:
+                            if h.status == states.QUEUING:
+                                h.spawnHero(radiantEasyLane)
+                                break
+                    nextHero = nextHero + 1 % 5
 
 
             screen.fill(black)
@@ -620,8 +859,49 @@ class View:
                 self.drawLane(screen, direMidLane, (1, 5, 9, 13))
                 self.drawLane(screen, direEasyLane, (1, 6, 12, 24))
 
+            hero_number = 0
+            for h in radiantHeroes:
+                if h.status == states.QUEUING:
+                    self.drawPortrait(screen, h, "radiant", hero_number, alphaMod[inc % len(alphaMod)])
+                elif h.status == states.DEAD:
+                    self.drawPortrait(screen, h, "radiant", hero_number)
+                else:
+                    if self.inRange(h, direHeroes):
+                        unused_variable = "attack enemy heroes"
+                    elif self.inRange(h, direCreeps): # this function records aggro
+                        unused_variable = "attack enemy creeps"
+                    elif self.buildingsInRange(h, direBuildings):
+                        unused_variable = "attack buildings"
+                    else:
+                        # find out where the creep is heading
+                        if len(h.path) > 0:
+                            prevPathPos = h.path[h.pathPos-1]
+                            if len(h.path) > h.pathPos:
+                                targetPathPos = h.path[h.pathPos]
+                        else:
+                            prevPathPos = h.path[h.pathPos]
+                            targetPathPos = h.path[h.pathPos+1]
+                        targetx = targetPathPos[0] - prevPathPos[0]
+                        targety = targetPathPos[1] - prevPathPos[1]
+                        oldPos = h.pos
+                        h.move()
+                        # the move might be blocked! check if it's possible:'
+                        if self.collision(h, h.pos, radiantCreeps, direCreeps):
+                            h.pos = oldPos # just stand still
+
+                    # offset creep so they dont stand on top of each other
+
+                    screen.blit(h.image, h.offsetPos)
+
+                    self.drawHpBar(screen, h, green) # TODO: also offset hp bar...
+
+                    self.drawPortrait(screen, h, "radiant", hero_number)
+
+                hero_number += 1
+
+
             for b in direBuildings:
-                if b.alive:
+                if b.status == states.ALIVE:
                     if b.canAttack:
                         b.newTurn()
                         if self.inRange(b, radiantHeroes):
@@ -632,7 +912,7 @@ class View:
                     self.drawHpBar(screen, b, red)
                 #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
             for b in radiantBuildings:
-                if b.alive:
+                if b.status == states.ALIVE:
                     if b.canAttack:
                         b.newTurn()
                         if self.inRange(b, direHeroes):
@@ -770,37 +1050,6 @@ class View:
                 screen.blit(c.image, c.offsetPos)
 
                 self.drawHpBar(screen, c, red) # TODO: also offset hp bar...
-
-            for h in radiantHeroes:
-                if self.inRange(h, direHeroes):
-                    unused_variable = "attack enemy heroes"
-                elif self.inRange(h, direCreeps): # this function records aggro
-                    unused_variable = "attack enemy creeps"
-                elif self.buildingsInRange(h, direBuildings):
-                    unused_variable = "attack buildings"
-                else:
-                    # find out where the creep is heading
-                    if len(h.path) > 0:
-                        prevPathPos = h.path[h.pathPos-1]
-                        if len(h.path) > h.pathPos:
-                            targetPathPos = h.path[h.pathPos]
-                    else:
-                        prevPathPos = h.path[h.pathPos]
-                        targetPathPos = h.path[h.pathPos+1]
-                    targetx = targetPathPos[0] - prevPathPos[0]
-                    targety = targetPathPos[1] - prevPathPos[1]
-                    oldPos = h.pos
-                    h.move()
-                    # the move might be blocked! check if it's possible:'
-                    if self.collision(h, h.pos, radiantCreeps, direCreeps):
-                        h.pos = oldPos # just stand still
-
-                # offset creep so they dont stand on top of each other
-
-                screen.blit(h.image, h.offsetPos)
-
-                self.drawHpBar(screen, h, green) # TODO: also offset hp bar...
-
 
             n += 1
 
