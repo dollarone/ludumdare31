@@ -220,6 +220,7 @@ class Hero(Unit):
         super(Hero, self).__init__(path, rect, image, name)
         self.status = states.QUEUING
         self.respawn_timer = 110
+        self.faction = "Unknown"
 
     def damage(self, dam):
         self.hp -= dam
@@ -273,7 +274,6 @@ class Ursa(Hero):
     hero_image_rect = hero_image.get_rect()
 
     hero_profile = pygame.image.load("ursa_profile.png")
-    hero_profile.set_colorkey(( 255, 255, 255))
     hero_profile_rect = hero_image.get_rect()
 
     def __init__(self, path=[], rect=None, image=None, name="Ursa"):
@@ -297,7 +297,6 @@ class Sven(Hero):
     hero_image_rect = hero_image.get_rect()
 
     hero_profile = pygame.image.load("sven_profile.png")
-    hero_profile.set_colorkey(( 255, 255, 255))
     hero_profile_rect = hero_image.get_rect()
 
     def __init__(self, path=[], rect=None, image=None, name="Sven"):
@@ -321,7 +320,6 @@ class Lichking(Hero):
     hero_image_rect = hero_image.get_rect()
 
     hero_profile = pygame.image.load("lichking_profile.png")
-    hero_profile.set_colorkey(( 255, 255, 255))
     hero_profile_rect = hero_image.get_rect()
 
     def __init__(self, path=[], rect=None, image=None, name="Lichking"):
@@ -345,7 +343,6 @@ class Tidehunter(Hero):
     hero_image_rect = hero_image.get_rect()
 
     hero_profile = pygame.image.load("tidehunter_profile.png")
-    hero_profile.set_colorkey(( 255, 255, 255))
     hero_profile_rect = hero_image.get_rect()
 
     def __init__(self, path=[], rect=None, image=None, name="Tidehunter"):
@@ -369,7 +366,6 @@ class Furion(Hero):
     hero_image_rect = hero_image.get_rect()
 
     hero_profile = pygame.image.load("furion_profile.png")
-    hero_profile.set_colorkey(( 255, 255, 255))
     hero_profile_rect = hero_image.get_rect()
 
     def __init__(self, path=[], rect=None, image=None, name="Furion"):
@@ -393,7 +389,6 @@ class Sandking(Hero):
     hero_image_rect = hero_image.get_rect()
 
     hero_profile = pygame.image.load("sandking_profile.png")
-    hero_profile.set_colorkey(( 255, 255, 255))
     hero_profile_rect = hero_image.get_rect()
 
     def __init__(self, path=[], rect=None, image=None, name="Sand King"):
@@ -405,6 +400,94 @@ class Sandking(Hero):
         self.rect = Sandking.hero_image_rect
         self.profile = Sandking.hero_profile.convert()
         self.profile_rect = Sandking.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+class OgreMagi(Hero):
+    hero_image = pygame.image.load("ogremagi.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("ogre_magi_profile.png")
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Ogre Magi"):
+        super(OgreMagi, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = OgreMagi.hero_image.convert()
+        self.rect = OgreMagi.hero_image_rect
+        self.profile = OgreMagi.hero_profile.convert()
+        self.profile_rect = OgreMagi.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+class Warlock(Hero):
+    hero_image = pygame.image.load("warlock.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("warlock_profile.png")
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Warlock"):
+        super(Warlock, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = Warlock.hero_image.convert()
+        self.rect = Warlock.hero_image_rect
+        self.profile = Warlock.hero_profile.convert()
+        self.profile_rect = Warlock.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+class Zeus(Hero):
+    hero_image = pygame.image.load("zeus.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("zeus_profile.png")
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Zeus"):
+        super(Zeus, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = Zeus.hero_image.convert()
+        self.rect = Zeus.hero_image_rect
+        self.profile = Zeus.hero_profile.convert()
+        self.profile_rect = Zeus.hero_profile_rect
+        self.maxAttack = 49
+        self.minAttack = 45
+        self.armor = 5.52
+        self.attackCooldown = 102 # 1.7 BAT
+
+class WitchDoctor(Hero):
+    hero_image = pygame.image.load("witch_doctor.png")
+    hero_image.set_colorkey(( 255, 255, 255))
+    hero_image_rect = hero_image.get_rect()
+
+    hero_profile = pygame.image.load("witch_doctor_profile.png")
+    hero_profile_rect = hero_image.get_rect()
+
+    def __init__(self, path=[], rect=None, image=None, name="Witch Doctor"):
+        super(WitchDoctor, self).__init__(path, rect, image, name)
+        self.attackRange = 20
+        self.hp = 587
+        self.hpmax = 587
+        self.image = WitchDoctor.hero_image.convert()
+        self.rect = WitchDoctor.hero_image_rect
+        self.profile = WitchDoctor.hero_profile.convert()
+        self.profile_rect = WitchDoctor.hero_profile_rect
         self.maxAttack = 49
         self.minAttack = 45
         self.armor = 5.52
@@ -542,14 +625,25 @@ class View:
         buildings.append(Lvl1Tower((940, 420), direTowerImageRect, direTowerImage))
         return buildings
 
-    def generateRadiantHeroes(self, heroes):
-        heroes.append(Ursa())
-        heroes.append(Sven())
-        heroes.append(Tidehunter())
-        hero = Sandking()
-        hero.status = states.DEAD
-        heroes.append(hero)
-        heroes.append(Lichking())
+    def generateHeroes(self, heroes):
+        heroes.add(Ursa())
+        heroes.add(Sven())
+        heroes.add(Tidehunter())
+        heroes.add(Sandking())
+        heroes.add(Lichking())
+        heroes.add(Furion())
+        heroes.add(OgreMagi())
+        heroes.add(Warlock())
+        heroes.add(Zeus())
+        heroes.add(WitchDoctor())
+
+    def randomlyPickHeroes(self, available, heroes, faction):
+        for i in range(0, 5):
+            #randomHero = rand.randrange(1, len(available))
+            hero = available.pop()
+            hero.faction = faction
+            heroes.append(hero)
+
 
     def dist(self, p, q):
         return math.sqrt((p[0] - q[0]) ** 2+(p[1] - q[1]) ** 2)
@@ -651,7 +745,11 @@ class View:
         elif hero.status == states.DEAD:
             tmp = self.get_alpha_surface(hero.profile, 80, 255, 128, 128, pygame.BLEND_RGBA_MULT)
 
-        screen.blit(tmp, (1, hero_number * 144), Rect(1, 1, 240, 144)) #256, 144
+        x = 1
+        if hero.faction == "dire":
+            x = 1040
+            tmp = pygame.transform.flip(tmp, True, False)
+        screen.blit(tmp, (x, hero_number * 144), Rect(1, 1, 240, 144)) #256, 144
 
         #pygame.draw.rect(scr, black, (c.offsetPos[0] - 1 - c.hpmax/40, c.offsetPos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
 
@@ -747,6 +845,7 @@ class View:
         radiantCreeps = []
         direCreeps = []
 
+        availableHeroes = set()
         radiantHeroes = []
         direHeroes = []
 
@@ -764,7 +863,9 @@ class View:
         spawning = 0
         spawningCooldown = 0
 
-        self.generateRadiantHeroes(radiantHeroes)
+        self.generateHeroes(availableHeroes)
+        self.randomlyPickHeroes(availableHeroes, radiantHeroes, "radiant")
+        self.randomlyPickHeroes(availableHeroes, direHeroes, "dire")
 
         print(str(radiantHeroes))
         for h in radiantHeroes:
@@ -858,6 +959,11 @@ class View:
                 self.drawLane(screen, direHardLane, (1, 6, 12, 19))
                 self.drawLane(screen, direMidLane, (1, 5, 9, 13))
                 self.drawLane(screen, direEasyLane, (1, 6, 12, 24))
+
+            hero_number = 0
+            for h in direHeroes:
+                self.drawPortrait(screen, h, "dire", hero_number)
+                hero_number += 1
 
             hero_number = 0
             for h in radiantHeroes:
