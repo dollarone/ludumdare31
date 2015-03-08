@@ -231,13 +231,14 @@ class Hero(Unit):
     def newTurn(self):
         super(Hero, self).newTurn()
 
-        print(self.name + " " + str(self.status))
+        #print(self.name + " " + str(self.status))
 
         if self.respawn_timer <= 0 and self.status == states.DEAD:
             self.reset()
+            print(self.name + " back in the queue!")
         if self.status == states.DEAD:
             self.respawn_timer -= 1
-            print(self.name + " " + str(self.respawn_timer))
+            #print(self.name + " " + str(self.respawn_timer))
 
 
     def reset(self):
@@ -532,17 +533,134 @@ class RangedCreep(Creep):
 def enum(**enums):
     return type('Enum', (), enums)
 
+class BasicAI:
+    def __init__(self, cgi):
+        #self.heroes = heroes
+        self.cgi = cgi
+        self.player_code = "not yet set"
+
+    def tick(self):
+        print("AI will try to spawn hero in mid with access code " + self.player_code)
+        #for h in heroes:
+        #    if h.status == states.QUEUING:
+        try:
+            self.cgi.press(self.player_code, keys.SPAWN_HERO_IN_MID_LANE)
+        except InvalidPlayerCodeError as e:
+            print(str(e))
+
+class CGI:
+
+    def __init__(self, view):
+        global keys
+        keys = enum(SPAWN_HERO_IN_TOP_LANE=1, SPAWN_HERO_IN_MID_LANE=2, SPAWN_HERO_IN_BOT_LANE=3)
+        self.view = view
+        self.radiant_player_registered = False
+        self.dire_player_registered = False
+        self.radiant_player_code = " "
+        self.dire_player_code = " "
+        self.radiant_heroes_set = False
+        self.dire_heroes_set = False
+
+
+    def register(self, faction, name="anon", callback=None):
+        if faction == "radiant":
+            if self.radiant_player_registered:
+                raise FactionTakenError("Another player has already claimed " + faction)
+            else:
+                self.radiant= name
+                self.radiant_player_registered = True
+                self.radiant_player_code = "1b"  #token_generator.generate()
+                self.radiant_callback = callback
+                return self.radiant_player_code
+
+        if faction == "dire":
+            if self.dire_player_registered:
+                raise FactionTakenError("Another player has already claimed " + faction)
+            else:
+                self.dire = name
+                self.dire_player_registered = True
+                self.dire_player_code = "1e" # token_generator.generate()
+                self.dire_callback = callback
+                return self.dire_player_code
+
+    def set_heroes(self, player_code, heroes):
+        if player_code == self.radiant_player_code:
+            self.radiant_heroes = heroes
+            self.radiant_heroes_set = True
+
+        elif player_code == self.dire_player_code:
+            self.dire_heroes = heroes
+            self.dire_heroes_set = True
+
+    def ready_to_play(self):
+        return radiant_player_registered and dire_player_registered and self.radiant_heroes_set and self.dire_heroes_set
+
+    def press(self, player_code, key):
+        if player_code == self.radiant_player_code:
+            self.spawn_hero(player_code)
+        elif player_code == self.dire_player_code:
+            self.spawn_hero(player_code)
+        else:
+            raise InvalidPlayerCodeError("Fail: " + str(player_code))
+
+    def spawn_hero(self, player_code):
+        if player_code == self.radiant_player_code:
+            for h in self.view.radiantHeroes:
+                if h.status == states.QUEUING:
+                    h.spawnHero(self.view.radiantHardLane)
+                    break
+        if player_code == self.dire_player_code:
+            for h in self.view.direHeroes:
+                if h.status == states.QUEUING:
+                    h.spawnHero(self.view.direMidLane)
+                    break
+
+    def tick(self):
+        if self.radiant_callback != None:
+            self.radiant_callback()
+
+        if self.dire_callback != None:
+            self.dire_callback()
+
+class InvalidPlayerCodeError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+class FactionTakenError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
 class View:
 
     def __init__(self):
         global font, rand, creepNo, states
         states = enum(QUEUING=1, ALIVE=2, DEAD=3)
+        factions = enum(RADIANT=1, DIRE=2)
 
         pygame.init()
         font = pygame.font.SysFont('Arial', 16)
         rand = random.Random()
         rand.seed(2)
         creepNo = 1
+        self.cgi = CGI(self)
+
+    def addHumanPlayer(self, faction):
+        try:
+            self.player1_code = self.cgi.register(faction, "Player 1")
+        except FactionTakenError as e:
+            print(str(e))
+
+    def addAI(self, faction, ai):
+        try:
+            ai.player_code = self.cgi.register(faction, "Player 2", ai.tick)
+        except FactionTakenError as e:
+            print(str(e))
+
+
 
     def addRect(self, scr, col, pos, size):
         pygame.draw.rect(scr, col, (pos[0], pos[1], size[0], size[1]), 1)
@@ -740,7 +858,7 @@ class View:
             hero.profile.set_alpha(255)
             tmp = hero.profile
         elif hero.status == states.QUEUING:
-            hero.profile.set_alpha(180 + alphaMod)
+            hero.profile.set_alpha(150 + alphaMod)
             tmp = hero.profile
         elif hero.status == states.DEAD:
             tmp = self.get_alpha_surface(hero.profile, 80, 255, 128, 128, pygame.BLEND_RGBA_MULT)
@@ -766,8 +884,9 @@ class View:
         tmp.blit(surf, (0,0), surf.get_rect(), mode)
         return tmp
 
+
     def start(self):
-        global red, green, blue, darkBlue, white, black, pink, mygreen, font, rand
+        global red, green, blue, darkBlue, white, black, pink, mygreen, font, rand, direHardLane, direHeroes
 
         # some colours might be useful
         red = (255,0,0)
@@ -781,6 +900,13 @@ class View:
 
         spawnInterval = 20.0
 
+        basicAI = BasicAI(self.cgi)
+        try:
+            self.addHumanPlayer("radiant")
+            self.addAI("dire", basicAI)
+
+        except FactionTakenError as e:
+            print(str(e))
 
         w = 1280
         h = 720
@@ -809,45 +935,45 @@ class View:
         # 0 = all/both, 1 = radiant, 2  = dire,  3 = nothing
         view = 3
 
-        direHardLane = []
-        direMidLane = []
-        direEasyLane = []
+        self.direHardLane = []
+        self.direMidLane = []
+        self.direEasyLane = []
 
-        radiantHardLane = []
-        radiantEasyLane = []
-        radiantMidLane = []
+        self.radiantHardLane = []
+        self.radiantEasyLane = []
+        self.radiantMidLane = []
 
         for i in range(1,32):
 
-            radiantMidLane.append((320 + i*20, 660 + i*-20))
-            direMidLane.append((940 + i*-20, 40 + i*20))
+            self.radiantMidLane.append((320 + i*20, 660 + i*-20))
+            self.direMidLane.append((940 + i*-20, 40 + i*20))
             if i < 29:
-                radiantHardLane.append((320, 660 + i*-20))
-                radiantEasyLane.append((320 + i*20, 660))
-                direHardLane.append((940,40 + i*20))
-                direEasyLane.append((940 + i*-20,40))
+                self.radiantHardLane.append((320, 660 + i*-20))
+                self.radiantEasyLane.append((320 + i*20, 660))
+                self.direHardLane.append((940,40 + i*20))
+                self.direEasyLane.append((940 + i*-20,40))
             elif i == 29:
-                radiantHardLane.append((320 + 20, 660 + i*-20))
-                radiantEasyLane.append((320 + i*20, 640))
-                direHardLane.append((940 - 20,40 + i*20))
-                direEasyLane.append((940 + i*-20,60))
+                self.radiantHardLane.append((320 + 20, 660 + i*-20))
+                self.radiantEasyLane.append((320 + i*20, 640))
+                self.direHardLane.append((940 - 20,40 + i*20))
+                self.direEasyLane.append((940 + i*-20,60))
             elif i == 30:
-                radiantHardLane.append((320 + 40, 660 + i*-20))
-                radiantEasyLane.append((320 + i*20, 620))
-                direHardLane.append((940 - 40,40 + i*20))
-                direEasyLane.append((940 + i*-20,80))
+                self.radiantHardLane.append((320 + 40, 660 + i*-20))
+                self.radiantEasyLane.append((320 + i*20, 620))
+                self.direHardLane.append((940 - 40,40 + i*20))
+                self.direEasyLane.append((940 + i*-20,80))
         for i in range(29):
-                radiantHardLane.append((320 + 60 + i*20, 40))
-                radiantEasyLane.append((940, 600 + i*-20))
-                direHardLane.append((940 - 60 - i*20,660))
-                direEasyLane.append((320, 100 + i*20))
+                self.radiantHardLane.append((320 + 60 + i*20, 40))
+                self.radiantEasyLane.append((940, 600 + i*-20))
+                self.direHardLane.append((940 - 60 - i*20,660))
+                self.direEasyLane.append((320, 100 + i*20))
 
         radiantCreeps = []
         direCreeps = []
 
         availableHeroes = set()
-        radiantHeroes = []
-        direHeroes = []
+        self.radiantHeroes = []
+        self.direHeroes = []
 
         numberOfCreepsPerWave = 4
 
@@ -864,21 +990,15 @@ class View:
         spawningCooldown = 0
 
         self.generateHeroes(availableHeroes)
-        self.randomlyPickHeroes(availableHeroes, radiantHeroes, "radiant")
-        self.randomlyPickHeroes(availableHeroes, direHeroes, "dire")
-
-        print(str(radiantHeroes))
-        for h in radiantHeroes:
-            print(str(h.name) + str(h.status))
-
-        #self.spawnHero(radiantHeroes, radiantHardLane, spawning)
+        self.randomlyPickHeroes(availableHeroes, self.radiantHeroes, "radiant")
+        self.randomlyPickHeroes(availableHeroes, self.direHeroes, "dire")
 
         nextHero = 0
         inc = 0
 
-        alphaMod = list(range(-25, 25, 2))
+        alphaMod = list(range(-44, 34, 2))
         #alphaMod.extend(list(range(25, -25, 2)))
-        alphaMod.extend(list(reversed(range(-25, 25, 2))))
+        alphaMod.extend(list(reversed(range(-46, 35, 2))))
         print(str(alphaMod))
 
         while mainloop:
@@ -890,24 +1010,26 @@ class View:
             for c in direCreeps:
                 c.newTurn()
 
-            for h in radiantHeroes:
+            for h in self.radiantHeroes:
                 h.newTurn()
-            for h in direHeroes:
+            for h in self.direHeroes:
                 h.newTurn()
+
+            self.cgi.tick()
 
             milliseconds = clock.tick(FPS)
             playtime += milliseconds / 1000.0
 
             if spawning > 0:
                 if spawningCooldown <= 0:
-                    self.spawnCreep(radiantCreeps, radiantHardLane, spawning)
-                    self.spawnCreep(radiantCreeps, radiantMidLane, spawning)
-                    self.spawnCreep(radiantCreeps, radiantEasyLane, spawning)
+                    self.spawnCreep(radiantCreeps, self.radiantHardLane, spawning)
+                    self.spawnCreep(radiantCreeps, self.radiantMidLane, spawning)
+                    self.spawnCreep(radiantCreeps, self.radiantEasyLane, spawning)
                     #radiantCreeps.append(RangedCreep(radiantHardLane))
 
-                    self.spawnCreep(direCreeps, direHardLane, spawning)
-                    self.spawnCreep(direCreeps, direMidLane, spawning)
-                    self.spawnCreep(direCreeps, direEasyLane, spawning)
+                    self.spawnCreep(direCreeps, self.direHardLane, spawning)
+                    self.spawnCreep(direCreeps, self.direMidLane, spawning)
+                    self.spawnCreep(direCreeps, self.direEasyLane, spawning)
 
                     spawning -= 1
                     spawningCooldown = 20
@@ -931,20 +1053,22 @@ class View:
                         # toggle view
                         view = (view + 1) % 4
                     elif event.key == pygame.K_1:
-                        for h in radiantHeroes:
+                        for h in self.radiantHeroes:
                             if h.status == states.QUEUING:
-                                h.spawnHero(radiantHardLane)
+                                h.spawnHero(self.radiantHardLane)
                                 break
                     elif event.key == pygame.K_2:
-                        for h in radiantHeroes:
+                        for h in self.radiantHeroes:
                             if h.status == states.QUEUING:
-                                h.spawnHero(radiantMidLane)
+                                h.spawnHero(self.radiantMidLane)
                                 break
                     elif event.key == pygame.K_3:
-                        for h in radiantHeroes:
+                        for h in self.radiantHeroes:
                             if h.status == states.QUEUING:
-                                h.spawnHero(radiantEasyLane)
+                                h.spawnHero(self.radiantEasyLane)
                                 break
+                    elif event.key == pygame.K_5:
+                        self.cgi.press(self.player1_code, keys.SPAWN_HERO_IN_TOP_LANE)
                     nextHero = nextHero + 1 % 5
 
 
@@ -961,18 +1085,13 @@ class View:
                 self.drawLane(screen, direEasyLane, (1, 6, 12, 24))
 
             hero_number = 0
-            for h in direHeroes:
-                self.drawPortrait(screen, h, "dire", hero_number)
-                hero_number += 1
-
-            hero_number = 0
-            for h in radiantHeroes:
+            for h in self.radiantHeroes:
                 if h.status == states.QUEUING:
                     self.drawPortrait(screen, h, "radiant", hero_number, alphaMod[inc % len(alphaMod)])
                 elif h.status == states.DEAD:
                     self.drawPortrait(screen, h, "radiant", hero_number)
                 else:
-                    if self.inRange(h, direHeroes):
+                    if self.inRange(h, self.direHeroes):
                         unused_variable = "attack enemy heroes"
                     elif self.inRange(h, direCreeps): # this function records aggro
                         unused_variable = "attack enemy creeps"
@@ -1005,12 +1124,52 @@ class View:
 
                 hero_number += 1
 
+            hero_number = 0
+            for h in self.direHeroes:
+                if h.status == states.QUEUING:
+                    self.drawPortrait(screen, h, "dire", hero_number, alphaMod[inc % len(alphaMod)])
+                elif h.status == states.DEAD:
+                    self.drawPortrait(screen, h, "dire", hero_number)
+                else:
+                    if self.inRange(h, self.radiantHeroes):
+                        unused_variable = "attack enemy heroes"
+                    elif self.inRange(h, radiantCreeps): # this function records aggro
+                        unused_variable = "attack enemy creeps"
+                    elif self.buildingsInRange(h, radiantBuildings):
+                        unused_variable = "attack buildings"
+                    else:
+                        # find out where the creep is heading
+                        if len(h.path) > 0:
+                            prevPathPos = h.path[h.pathPos-1]
+                            if len(h.path) > h.pathPos:
+                                targetPathPos = h.path[h.pathPos]
+                        else:
+                            prevPathPos = h.path[h.pathPos]
+                            targetPathPos = h.path[h.pathPos+1]
+                        targetx = targetPathPos[0] - prevPathPos[0]
+                        targety = targetPathPos[1] - prevPathPos[1]
+                        oldPos = h.pos
+                        h.move()
+                        # the move might be blocked! check if it's possible:'
+                        if self.collision(h, h.pos, direCreeps, radiantCreeps):
+                            h.pos = oldPos # just stand still
+
+                    # offset creep so they dont stand on top of each other
+
+                    screen.blit(h.image, h.offsetPos)
+
+                    self.drawHpBar(screen, h, green) # TODO: also offset hp bar...
+
+                    self.drawPortrait(screen, h, "dire", hero_number)
+
+                hero_number += 1
+
 
             for b in direBuildings:
                 if b.status == states.ALIVE:
                     if b.canAttack:
                         b.newTurn()
-                        if self.inRange(b, radiantHeroes):
+                        if self.inRange(b, self.radiantHeroes):
                             unused_variable = "attack enemies"
                         elif self.inRange(b, radiantCreeps):
                             unused_variable = "attack enemies"
@@ -1021,7 +1180,7 @@ class View:
                 if b.status == states.ALIVE:
                     if b.canAttack:
                         b.newTurn()
-                        if self.inRange(b, direHeroes):
+                        if self.inRange(b, self.direHeroes):
                             unused_variable = "attack enemies"
                         elif self.inRange(b, direCreeps):
                             unused_variable = "attack enemies"
@@ -1030,7 +1189,7 @@ class View:
 
 
             for c in radiantCreeps:
-                if self.inRange(c, direHeroes): # this function records aggro
+                if self.inRange(c, self.direHeroes): # this function records aggro
                     unused_variable = "attack enemies"
                 elif self.inRange(c, direCreeps): # this function records aggro
                     unused_variable = "attack enemies"
@@ -1128,7 +1287,7 @@ class View:
                 self.drawHpBar(screen, c, green)
 
             for c in direCreeps:
-                if self.inRange(c, radiantHeroes): # this function records aggro
+                if self.inRange(c, self.radiantHeroes): # this function records aggro
                     unused_variable = "attack enemy heroes"
                 elif self.inRange(c, radiantCreeps): # this function records aggro
                     unused_variable = "attack enemy creeps"
