@@ -1,14 +1,14 @@
 required bits:
-make creep classes have a static image and rect
-towers need to attack
+done: make creep classes have a static image and rect
+done: towers need to attack
 updated HP/damage 
 creep v creep attack logic
 (Generic) Heroes (well, one hits hard and slow, other fast and easy, extra dmg vs towers) and controls/UI
-Experience and Gold
-game over message + restart controls
+levels! Experience and Gold
+reset functions for game over message + restart controls
 attack "animations"/markers
 
-
+which cols
 extras:
 sound
 music

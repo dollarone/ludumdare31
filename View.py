@@ -3,6 +3,7 @@ import pygame
 import random
 import inspect
 from pygame.locals import *
+import time
 
 class Building:
 
@@ -20,11 +21,17 @@ class Building:
         self.image = image
         self.viewModifier = viewModifier
         self.armor = 15
+        self.xp = 0
 
     def damage(self, dam):
         self.hp -= dam
         if self.hp <= 0:
             self.status = states.DEAD
+            return True
+        return False
+
+    def draw(self, scr, col):
+        pass
 
 class Tower(Building):
 
@@ -55,6 +62,10 @@ class Tower(Building):
             self.currentAttackCooldown -= 1
         if self.currentAttackCooldown == 0:
             self.readyToAttack = True
+
+    def draw(self, scr, col):
+        pygame.draw.circle(scr, col, (self.pos[0] + 12, self.pos[1] + 12), self.attackRange, 1)
+
 
 class Lvl1Tower(Tower):
 
@@ -135,7 +146,7 @@ class Unit:
             self.pos = None
         self.prevPos = self.pos #used for checking if the creep is stuck
         self.offsetPos = self.pos
-        self.attackRange = 5
+        self.attackRange = 10
         self.readyToAttack = True
         self.attackCooldown = 60
         self.currentAttackCooldown = 0
@@ -148,6 +159,9 @@ class Unit:
         self.status = states.ALIVE
         self.offset = 0
         self.armor = 2
+        self.xp = 0
+        self.xp_range = 50
+        self.xp_bounty = 20
 
     def resetAttackCooldown(self):
         self.readyToAttack = False
@@ -210,6 +224,8 @@ class Unit:
         self.hp -= dam
         if self.hp <= 0:
             self.status = states.DEAD
+            return True
+        return False
 
     def attack(self):
 #        global rand
@@ -221,12 +237,71 @@ class Hero(Unit):
         self.status = states.QUEUING
         self.respawn_timer = 110
         self.faction = "Unknown"
+        self.level = 1
+
+    def draw(self, scr, col, hero_number, faction, gradient):
+        if self.status == states.ALIVE:
+            scr.blit(self.image, self.offsetPos)
+            pygame.draw.rect(scr, black, (self.offsetPos[0] - 1 - self.hpmax / 40, self.offsetPos[1] - self.radius +
+                                          self.viewModifier, self.hpmax / 15 + 3, 8), 0)
+
+            if self.hp > 0:
+                pygame.draw.rect(scr, colours[self.faction][hero_number], (self.offsetPos[0] + 1 - self.hpmax / 40, self.offsetPos[1] - self.radius + 1 +  #+ #1*c.viewModifier, c.hp/15, 6), 0)
+                                        self.viewModifier, self.hp / 15, 6), 0)
+
+            pygame.draw.circle(scr, col, (self.pos[0] + 12, self.pos[1] + 12), self.attackRange, 1)
+            #circle(Surface, color, pos, radius, width=0
+
+        if self.status == states.QUEUING:
+            self.drawPortrait(scr, self, faction, hero_number, gradient)
+        elif self.status == states.DEAD:
+            self.drawPortrait(scr, self, faction, hero_number)
+        elif self.status == states.ALIVE:
+            self.drawPortrait(scr, self, faction, hero_number)
+
+    def drawPortrait(self, screen, hero, side, hero_number, alphaMod=128):
+        if self.status == states.ALIVE:
+            self.profile.set_alpha(255)
+            tmp = self.profile
+        elif self.status == states.QUEUING:
+            self.profile.set_alpha(150 + alphaMod)
+            tmp = self.profile
+        elif hero.status == states.DEAD:
+            tmp = self.get_alpha_surface(self.profile, 80, 255, 128, 128, pygame.BLEND_RGBA_MULT)
+
+        x = 1
+        if self.faction == factions.DIRE:
+            x = 1040
+            tmp = pygame.transform.flip(tmp, True, False)
+
+        #pygame.draw.rect(screen, colours[self.faction][hero_number], (x, hero_number * 144, 240, 144), 0)
+        screen.blit(tmp, (x + 1, hero_number * 144 + 1), Rect(1, 1, 238, 142)) #256, 144
+#        pygame.draw.rect(screen, darkBlue, (x, hero_number * 144, 240, 144), 0)
+
+        #pygame.draw.rect(scr, black, (c.offsetPos[0] - 1 - c.hpmax/40, c.offsetPos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
+
+    def get_alpha_surface(self, surf, alpha=128, red=128, green=128, blue=128, mode=pygame.BLEND_RGBA_MULT):
+        """
+        Allocate a new surface with user-defined values (0-255)
+        for red, green, blue and alpha.
+
+        Thanks to Claudio Canepa <ccanepacc@gmail.com>.
+        """
+
+        tmp = pygame.Surface( surf.get_size(), pygame.SRCALPHA, 32)
+        tmp.fill( (red,green,blue,alpha) )
+        tmp.blit(surf, (0,0), surf.get_rect(), mode)
+        return tmp
+
 
     def damage(self, dam):
         self.hp -= dam
         if self.hp <= 0:
             self.status = states.DEAD
-            self.respawn_timer = 200
+            self.respawn_timer = 50 + self.level * 15 # TODO: move to game settings
+            print(self.name + " dedd")
+            return True
+        return False
 
     def newTurn(self):
         super(Hero, self).newTurn()
@@ -315,23 +390,23 @@ class Sven(Hero):
         self.attackCooldown = 102 # 1.7 BAT
 
 
-class Lichking(Hero):
-    hero_image = pygame.image.load("lichking.png")
+class Wraith_King(Hero):
+    hero_image = pygame.image.load("wraith_king.png")
     hero_image.set_colorkey(( 255, 255, 255))
     hero_image_rect = hero_image.get_rect()
 
-    hero_profile = pygame.image.load("lichking_profile.png")
+    hero_profile = pygame.image.load("wraith_king_profile.png")
     hero_profile_rect = hero_image.get_rect()
 
-    def __init__(self, path=[], rect=None, image=None, name="Lichking"):
-        super(Lichking, self).__init__(path, rect, image, name)
+    def __init__(self, path=[], rect=None, image=None, name="Wraith King"):
+        super(Wraith_King, self).__init__(path, rect, image, name)
         self.attackRange = 20
         self.hp = 587
         self.hpmax = 587
-        self.image = Lichking.hero_image.convert()
-        self.rect = Lichking.hero_image_rect
-        self.profile = Lichking.hero_profile.convert()
-        self.profile_rect = Lichking.hero_profile_rect
+        self.image = Wraith_King.hero_image.convert()
+        self.rect = Wraith_King.hero_image_rect
+        self.profile = Wraith_King.hero_profile.convert()
+        self.profile_rect = Wraith_King.hero_profile_rect
         self.maxAttack = 49
         self.minAttack = 45
         self.armor = 5.52
@@ -499,6 +574,10 @@ class Creep(Unit):
     def __init__(self, path=[], rect=None, image=None, name="Unknown"):
         super(Creep, self).__init__(path, rect, image, name)
 
+    def draw(self, scr, col):
+        pygame.draw.circle(scr, col, (self.pos[0] + 12, self.pos[1] + 12), self.attackRange, 1)
+
+
 
 class MeleeCreep(Creep):
 
@@ -520,7 +599,7 @@ class RangedCreep(Creep):
 
     def __init__(self, path, rect=None, image=None):
         super(RangedCreep, self).__init__(path, rect, image, "Ranged Creep")
-        self.attackRange = 20
+        self.attackRange = 30
         self.hp = 300
         self.image = RangedCreep.ranged_image.convert()
         self.rect = RangedCreep.ranged_image_rect
@@ -538,15 +617,25 @@ class BasicAI:
         #self.heroes = heroes
         self.cgi = cgi
         self.player_code = "not yet set"
+        self.counter = 0
 
     def tick(self):
-        print("AI will try to spawn hero in mid with access code " + self.player_code)
+        #print("AI will try to spawn hero in mid with access code " + self.player_code)
         #for h in heroes:
         #    if h.status == states.QUEUING:
-        try:
-            self.cgi.press(self.player_code, keys.SPAWN_HERO_IN_MID_LANE)
-        except InvalidPlayerCodeError as e:
-            print(str(e))
+        if self.counter % 100 == 0:
+            try:
+                r = rand.randrange(1, 3) # not working
+                r = self.counter % 3 + 1
+                if r == 1:
+                    self.cgi.press(self.player_code, keys.SPAWN_HERO_IN_TOP_LANE)
+                elif r == 2:
+                    self.cgi.press(self.player_code, keys.SPAWN_HERO_IN_MID_LANE)
+                elif r == 3:
+                    self.cgi.press(self.player_code, keys.SPAWN_HERO_IN_BOT_LANE)
+            except InvalidPlayerCodeError as e:
+                print(str(e))
+        self.counter += 1
 
 class CGI:
 
@@ -563,7 +652,7 @@ class CGI:
 
 
     def register(self, faction, name="anon", callback=None):
-        if faction == "radiant":
+        if faction == factions.RADIANT:
             if self.radiant_player_registered:
                 raise FactionTakenError("Another player has already claimed " + faction)
             else:
@@ -573,7 +662,7 @@ class CGI:
                 self.radiant_callback = callback
                 return self.radiant_player_code
 
-        if faction == "dire":
+        if faction == factions.DIRE:
             if self.dire_player_registered:
                 raise FactionTakenError("Another player has already claimed " + faction)
             else:
@@ -593,27 +682,41 @@ class CGI:
             self.dire_heroes_set = True
 
     def ready_to_play(self):
-        return radiant_player_registered and dire_player_registered and self.radiant_heroes_set and self.dire_heroes_set
+        return self.radiant_player_registered and self.dire_player_registered and self.radiant_heroes_set and self.dire_heroes_set
 
     def press(self, player_code, key):
         if player_code == self.radiant_player_code:
-            self.spawn_hero(player_code)
+            self.spawn_hero(player_code, key)
         elif player_code == self.dire_player_code:
-            self.spawn_hero(player_code)
+            self.spawn_hero(player_code, key)
         else:
             raise InvalidPlayerCodeError("Fail: " + str(player_code))
 
-    def spawn_hero(self, player_code):
+    def spawn_hero(self, player_code, key):
         if player_code == self.radiant_player_code:
             for h in self.view.radiantHeroes:
                 if h.status == states.QUEUING:
-                    h.spawnHero(self.view.radiantHardLane)
-                    break
+                    if key == keys.SPAWN_HERO_IN_TOP_LANE:
+                        h.spawnHero(self.view.radiantHardLane)
+                        break
+                    elif key == keys.SPAWN_HERO_IN_MID_LANE:
+                        h.spawnHero(self.view.radiantMidLane)
+                        break
+                    elif key == keys.SPAWN_HERO_IN_BOT_LANE:
+                        h.spawnHero(self.view.radiantEasyLane)
+                        break
         if player_code == self.dire_player_code:
             for h in self.view.direHeroes:
                 if h.status == states.QUEUING:
-                    h.spawnHero(self.view.direMidLane)
-                    break
+                    if key == keys.SPAWN_HERO_IN_TOP_LANE:
+                        h.spawnHero(self.view.direEasyLane)
+                        break
+                    elif key == keys.SPAWN_HERO_IN_MID_LANE:
+                        h.spawnHero(self.view.direMidLane)
+                        break
+                    elif key == keys.SPAWN_HERO_IN_BOT_LANE:
+                        h.spawnHero(self.view.direHardLane)
+                        break
 
     def tick(self):
         if self.radiant_callback != None:
@@ -634,12 +737,55 @@ class FactionTakenError(Exception):
     def __str__(self):
         return repr(self.value)
 
+class Colours:
+    global red, green, blue, darkBlue, white, black, pink, mygreen, radiant_1, radiant_2, radiant_3
+
+    # some colours might be useful
+    orange = (255,153,0)
+    red = (255,0,0)
+    green = (0,255,0)
+    blue = (0,0,255)
+    darkBlue = (0,0,128)
+    white = (255,255,255)
+    black = (0,0,0)
+    pink = (155,100,100)
+    mygreen = (0, 135, 0)
+
+    radiant_1 = (46, 106, 230)
+    radiant_2 = (93, 230, 173)
+    radiant_3 = (173, 0, 173)
+    radiant_4 = (220, 217, 10)
+    radiant_5 = (220, 98, 0)
+
+    dire_1 = (230, 122, 176)
+    dire_2 = (146, 164, 64)
+    dire_3 = (92, 197, 224)
+    dire_4 = (0, 119, 31)
+    dire_5 = (149, 96, 0)
+
+
+
 class View:
 
     def __init__(self):
-        global font, rand, creepNo, states
+        global font, rand, creepNo, states, factions, colours
         states = enum(QUEUING=1, ALIVE=2, DEAD=3)
         factions = enum(RADIANT=1, DIRE=2)
+        colours = {}
+        colours[factions.RADIANT] = {}
+        colours[factions.RADIANT][0] = (46, 106, 230)
+        colours[factions.RADIANT][1] = (93, 230, 173)
+        colours[factions.RADIANT][2] = (173, 0, 173)
+        colours[factions.RADIANT][3] = (220, 217, 10)
+        colours[factions.RADIANT][4] = (220, 98, 0)
+        colours[factions.DIRE] = {}
+        colours[factions.DIRE][0] = (230, 122, 176)
+        colours[factions.DIRE][1] = (146, 164, 64)
+        colours[factions.DIRE][2] = (92, 197, 224)
+        colours[factions.DIRE][3] = (0, 119, 31)
+        colours[factions.DIRE][4] = (149, 96, 0)
+        colours[factions.RADIANT]["faction"] = (0, 255, 0)
+        colours[factions.DIRE]["faction"] = (255, 0, 0)
 
         pygame.init()
         font = pygame.font.SysFont('Arial', 16)
@@ -659,7 +805,6 @@ class View:
             ai.player_code = self.cgi.register(faction, "Player 2", ai.tick)
         except FactionTakenError as e:
             print(str(e))
-
 
 
     def addRect(self, scr, col, pos, size):
@@ -748,7 +893,7 @@ class View:
         heroes.add(Sven())
         heroes.add(Tidehunter())
         heroes.add(Sandking())
-        heroes.add(Lichking())
+        heroes.add(Wraith_King())
         heroes.add(Furion())
         heroes.add(OgreMagi())
         heroes.add(Warlock())
@@ -756,14 +901,18 @@ class View:
         heroes.add(WitchDoctor())
 
     def randomlyPickHeroes(self, available, heroes, faction):
+        #raondom TODO heroes.append([available].remove(rand.randrange(0,len(available))))
         for i in range(0, 5):
             #randomHero = rand.randrange(1, len(available))
             hero = available.pop()
             hero.faction = faction
             heroes.append(hero)
+            print(hero.name + " " + str(hero.faction))
 
 
     def dist(self, p, q):
+        #print(p)
+        #print(q)
         return math.sqrt((p[0] - q[0]) ** 2+(p[1] - q[1]) ** 2)
 
     def inRange(self, creep, targets):
@@ -771,7 +920,9 @@ class View:
             if t.status == states.ALIVE:
                 #print(str(t.status))
                 if self.dist(creep.pos, t.pos) <= creep.attackRange:
-                    self.attack(creep, t)
+                    if self.attack(creep, t):
+                        creep.xp += t.xp_bounty
+
                     if t.status == states.DEAD and not issubclass(t.__class__, Hero): ## YURGH
                         targets.remove(t)
                     return True
@@ -781,7 +932,8 @@ class View:
         for b in buildings:
             if b.status == states.ALIVE:
                if self.dist(creep.pos, b.pos) <= creep.attackRange:
-                    self.attack(creep, b)
+                    if self.attack(creep, b):
+                        creep.xp += b.xp_bounty
                     return True
         return False
 
@@ -796,12 +948,15 @@ class View:
             #print(str(source) + " " + str(source.currentAttackCooldown))
             atk = source.attack()
             dmg = atk * (1-dmgReduction)
-            dest.damage(dmg)
+#            return dest.damage(dmg)
 
             print(str(pygame.time.get_ticks() / 1000) + ": " + str(source.name) +
             " hitting " + str(atk) + " on " + str(dest.name) + "(with armor " +
             str(dest.armor) + ") means dmg reduction of " + str(dmgReduction) +
-            " == damage dealt: " + str(dmg) + " health remaining: " + str(dest.hp))
+            " == damage dealt: " + str(dmg) + " health remaining before dmg: " + str(dest.hp))
+
+            return dest.damage(dmg)
+        return False
 
     def collision(self, creep, pos, direCreeps, radiantCreeps):
         return False
@@ -852,43 +1007,11 @@ class View:
 
         #                        radiantCreeps.append(RangedCreep(radiantHardLane, rangedimagerect, rangedimage))
 
-
-    def drawPortrait(self, screen, hero, side, hero_number, alphaMod=128):
-        if hero.status == states.ALIVE:
-            hero.profile.set_alpha(255)
-            tmp = hero.profile
-        elif hero.status == states.QUEUING:
-            hero.profile.set_alpha(150 + alphaMod)
-            tmp = hero.profile
-        elif hero.status == states.DEAD:
-            tmp = self.get_alpha_surface(hero.profile, 80, 255, 128, 128, pygame.BLEND_RGBA_MULT)
-
-        x = 1
-        if hero.faction == "dire":
-            x = 1040
-            tmp = pygame.transform.flip(tmp, True, False)
-        screen.blit(tmp, (x, hero_number * 144), Rect(1, 1, 240, 144)) #256, 144
-
-        #pygame.draw.rect(scr, black, (c.offsetPos[0] - 1 - c.hpmax/40, c.offsetPos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
-
-    def get_alpha_surface(self, surf, alpha=128, red=128, green=128, blue=128, mode=pygame.BLEND_RGBA_MULT):
-        """
-        Allocate a new surface with user-defined values (0-255)
-        for red, green, blue and alpha.
-
-        Thanks to Claudio Canepa <ccanepacc@gmail.com>.
-        """
-
-        tmp = pygame.Surface( surf.get_size(), pygame.SRCALPHA, 32)
-        tmp.fill( (red,green,blue,alpha) )
-        tmp.blit(surf, (0,0), surf.get_rect(), mode)
-        return tmp
-
-
     def start(self):
-        global red, green, blue, darkBlue, white, black, pink, mygreen, font, rand, direHardLane, direHeroes
+        global red, green, blue, darkBlue, white, black, pink, mygreen, font, rand
 
         # some colours might be useful
+        orange = (255,153,0)
         red = (255,0,0)
         green = (0,255,0)
         blue = (0,0,255)
@@ -898,12 +1021,14 @@ class View:
         pink = (155,100,100)
         mygreen = (0, 135, 0)
 
+
+
         spawnInterval = 20.0
 
         basicAI = BasicAI(self.cgi)
         try:
-            self.addHumanPlayer("radiant")
-            self.addAI("dire", basicAI)
+            self.addHumanPlayer(factions.RADIANT)
+            self.addAI(factions.DIRE, basicAI)
 
         except FactionTakenError as e:
             print(str(e))
@@ -975,7 +1100,7 @@ class View:
         self.radiantHeroes = []
         self.direHeroes = []
 
-        numberOfCreepsPerWave = 4
+        numberOfCreepsPerWave = 3
 
         n = 0
         FPS = 60
@@ -990,8 +1115,8 @@ class View:
         spawningCooldown = 0
 
         self.generateHeroes(availableHeroes)
-        self.randomlyPickHeroes(availableHeroes, self.radiantHeroes, "radiant")
-        self.randomlyPickHeroes(availableHeroes, self.direHeroes, "dire")
+        self.randomlyPickHeroes(availableHeroes, self.radiantHeroes, factions.RADIANT)
+        self.randomlyPickHeroes(availableHeroes, self.direHeroes, factions.DIRE)
 
         nextHero = 0
         inc = 0
@@ -1000,6 +1125,8 @@ class View:
         #alphaMod.extend(list(range(25, -25, 2)))
         alphaMod.extend(list(reversed(range(-46, 35, 2))))
         print(str(alphaMod))
+
+        slow_mo = False
 
         while mainloop:
             inc += 1
@@ -1019,6 +1146,10 @@ class View:
 
             milliseconds = clock.tick(FPS)
             playtime += milliseconds / 1000.0
+
+            # SLOW
+            if slow_mo:
+                time.sleep(1)
 
             if spawning > 0:
                 if spawningCooldown <= 0:
@@ -1052,23 +1183,31 @@ class View:
                     elif event.key == pygame.K_t:
                         # toggle view
                         view = (view + 1) % 4
-                    elif event.key == pygame.K_1:
+                    elif event.key == pygame.K_s:
+                        slow_mo = not slow_mo
+                    elif event.key == pygame.K_q:
+                        self.radiantHeroes[0].ultimate()
+                    elif event.key == pygame.K_z:
                         for h in self.radiantHeroes:
                             if h.status == states.QUEUING:
-                                h.spawnHero(self.radiantHardLane)
+                                #h.spawnHero(self.radiantHardLane)
+                                self.cgi.press(self.player1_code, keys.SPAWN_HERO_IN_TOP_LANE)
+
                                 break
-                    elif event.key == pygame.K_2:
+                    elif event.key == pygame.K_x:
                         for h in self.radiantHeroes:
                             if h.status == states.QUEUING:
-                                h.spawnHero(self.radiantMidLane)
+                                #h.spawnHero(self.radiantMidLane)
+                                self.cgi.press(self.player1_code, keys.SPAWN_HERO_IN_MID_LANE)
                                 break
-                    elif event.key == pygame.K_3:
+                    elif event.key == pygame.K_c:
                         for h in self.radiantHeroes:
                             if h.status == states.QUEUING:
-                                h.spawnHero(self.radiantEasyLane)
+                                #h.spawnHero(self.radiantEasyLane)
+                                self.cgi.press(self.player1_code, keys.SPAWN_HERO_IN_BOT_LANE)
                                 break
                     elif event.key == pygame.K_5:
-                        self.cgi.press(self.player1_code, keys.SPAWN_HERO_IN_TOP_LANE)
+                        self.cgi.press(self.player2_code, keys.SPAWN_HERO_IN_TOP_LANE)
                     nextHero = nextHero + 1 % 5
 
 
@@ -1076,93 +1215,26 @@ class View:
             screen.blit(background_image, (235, -55))
 
             if view == 0 or view ==1:
-                self.drawLane(screen, radiantHardLane, (1, 6, 12, 19))
-                self.drawLane(screen, radiantMidLane, (1, 5, 9, 13))
-                self.drawLane(screen, radiantEasyLane, (1, 6, 12, 24))
+                self.drawLane(screen, self.radiantHardLane, (1, 6, 12, 19))
+                self.drawLane(screen, self.radiantMidLane, (1, 5, 9, 13))
+                self.drawLane(screen, self.radiantEasyLane, (1, 6, 12, 24))
             if view == 0 or view == 2:
-                self.drawLane(screen, direHardLane, (1, 6, 12, 19))
-                self.drawLane(screen, direMidLane, (1, 5, 9, 13))
-                self.drawLane(screen, direEasyLane, (1, 6, 12, 24))
+                self.drawLane(screen, self.direHardLane, (1, 6, 12, 19))
+                self.drawLane(screen, self.direMidLane, (1, 5, 9, 13))
+                self.drawLane(screen, self.direEasyLane, (1, 6, 12, 24))
 
-            hero_number = 0
-            for h in self.radiantHeroes:
-                if h.status == states.QUEUING:
-                    self.drawPortrait(screen, h, "radiant", hero_number, alphaMod[inc % len(alphaMod)])
-                elif h.status == states.DEAD:
-                    self.drawPortrait(screen, h, "radiant", hero_number)
-                else:
-                    if self.inRange(h, self.direHeroes):
-                        unused_variable = "attack enemy heroes"
-                    elif self.inRange(h, direCreeps): # this function records aggro
-                        unused_variable = "attack enemy creeps"
-                    elif self.buildingsInRange(h, direBuildings):
-                        unused_variable = "attack buildings"
-                    else:
-                        # find out where the creep is heading
-                        if len(h.path) > 0:
-                            prevPathPos = h.path[h.pathPos-1]
-                            if len(h.path) > h.pathPos:
-                                targetPathPos = h.path[h.pathPos]
-                        else:
-                            prevPathPos = h.path[h.pathPos]
-                            targetPathPos = h.path[h.pathPos+1]
-                        targetx = targetPathPos[0] - prevPathPos[0]
-                        targety = targetPathPos[1] - prevPathPos[1]
-                        oldPos = h.pos
-                        h.move()
-                        # the move might be blocked! check if it's possible:'
-                        if self.collision(h, h.pos, radiantCreeps, direCreeps):
-                            h.pos = oldPos # just stand still
 
-                    # offset creep so they dont stand on top of each other
-
-                    screen.blit(h.image, h.offsetPos)
-
-                    self.drawHpBar(screen, h, green) # TODO: also offset hp bar...
-
-                    self.drawPortrait(screen, h, "radiant", hero_number)
-
-                hero_number += 1
-
-            hero_number = 0
-            for h in self.direHeroes:
-                if h.status == states.QUEUING:
-                    self.drawPortrait(screen, h, "dire", hero_number, alphaMod[inc % len(alphaMod)])
-                elif h.status == states.DEAD:
-                    self.drawPortrait(screen, h, "dire", hero_number)
-                else:
-                    if self.inRange(h, self.radiantHeroes):
-                        unused_variable = "attack enemy heroes"
-                    elif self.inRange(h, radiantCreeps): # this function records aggro
-                        unused_variable = "attack enemy creeps"
-                    elif self.buildingsInRange(h, radiantBuildings):
-                        unused_variable = "attack buildings"
-                    else:
-                        # find out where the creep is heading
-                        if len(h.path) > 0:
-                            prevPathPos = h.path[h.pathPos-1]
-                            if len(h.path) > h.pathPos:
-                                targetPathPos = h.path[h.pathPos]
-                        else:
-                            prevPathPos = h.path[h.pathPos]
-                            targetPathPos = h.path[h.pathPos+1]
-                        targetx = targetPathPos[0] - prevPathPos[0]
-                        targety = targetPathPos[1] - prevPathPos[1]
-                        oldPos = h.pos
-                        h.move()
-                        # the move might be blocked! check if it's possible:'
-                        if self.collision(h, h.pos, direCreeps, radiantCreeps):
-                            h.pos = oldPos # just stand still
-
-                    # offset creep so they dont stand on top of each other
-
-                    screen.blit(h.image, h.offsetPos)
-
-                    self.drawHpBar(screen, h, green) # TODO: also offset hp bar...
-
-                    self.drawPortrait(screen, h, "dire", hero_number)
-
-                hero_number += 1
+            for b in radiantBuildings:
+                if b.status == states.ALIVE:
+                    if b.canAttack:
+                        b.newTurn()
+                        if self.inRange(b, self.direHeroes):
+                            unused_variable = "attack enemies"
+                        elif self.inRange(b, direCreeps):
+                            unused_variable = "attack enemies"
+                    screen.blit(b.image, b.pos)
+                    b.draw(screen, colours[factions.RADIANT]["faction"])
+                    self.drawHpBar(screen, b, green)
 
 
             for b in direBuildings:
@@ -1174,19 +1246,9 @@ class View:
                         elif self.inRange(b, radiantCreeps):
                             unused_variable = "attack enemies"
                     screen.blit(b.image, b.pos)
+                    b.draw(screen, colours[factions.DIRE]["faction"])
                     self.drawHpBar(screen, b, red)
                 #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
-            for b in radiantBuildings:
-                if b.status == states.ALIVE:
-                    if b.canAttack:
-                        b.newTurn()
-                        if self.inRange(b, self.direHeroes):
-                            unused_variable = "attack enemies"
-                        elif self.inRange(b, direCreeps):
-                            unused_variable = "attack enemies"
-                    screen.blit(b.image, b.pos)
-                    self.drawHpBar(screen, b, green)
-
 
             for c in radiantCreeps:
                 if self.inRange(c, self.direHeroes): # this function records aggro
@@ -1284,6 +1346,7 @@ class View:
 
                 screen.blit(c.image, c.offsetPos)
 
+                c.draw(screen, colours[factions.RADIANT]["faction"])
                 self.drawHpBar(screen, c, green)
 
             for c in direCreeps:
@@ -1313,8 +1376,87 @@ class View:
                 # offset creep so they dont stand on top of each other
 
                 screen.blit(c.image, c.offsetPos)
+                #screen.update(c.image)
+                c.draw(screen, colours[factions.DIRE]["faction"])
 
                 self.drawHpBar(screen, c, red) # TODO: also offset hp bar...
+
+
+
+ # TODO: this should all be h.update() followed by h.draw() - and h.update() can call view.attackDireCreeps() etc
+            hero_number = 0
+            for h in self.radiantHeroes:
+                if h.status == states.ALIVE:
+                    if self.inRange(h, self.direHeroes):
+                        unused_variable = "attack enemy heroes"
+                    elif self.inRange(h, direCreeps): # this function records aggro
+                        unused_variable = "attack enemy creeps"
+                    elif self.buildingsInRange(h, direBuildings):
+                        unused_variable = "attack buildings"
+                    else:
+                        # find out where the creep is heading
+                        if len(h.path) > 0:
+                            prevPathPos = h.path[h.pathPos-1]
+                            if len(h.path) > h.pathPos:
+                                targetPathPos = h.path[h.pathPos]
+                        else:
+                            prevPathPos = h.path[h.pathPos]
+                            targetPathPos = h.path[h.pathPos+1]
+                        targetx = targetPathPos[0] - prevPathPos[0]
+                        targety = targetPathPos[1] - prevPathPos[1]
+                        oldPos = h.pos
+                        h.move()
+                        # the move might be blocked! check if it's possible:'
+                        if self.collision(h, h.pos, radiantCreeps, direCreeps):
+                            h.pos = oldPos # just stand still
+
+                    # offset creep so they dont stand on top of each other
+
+                    #screen.blit(h.image, h.offsetPos)
+                h.draw(screen, orange, hero_number, factions.RADIANT, alphaMod[inc % len(alphaMod)])
+
+
+                    #self.drawHpBar(screen, h, blue) # TODO: also offset hp bar...
+
+                    #self.drawPortrait(screen, h, "radiant", hero_number)
+
+                hero_number += 1
+
+            hero_number = 0
+            for h in self.direHeroes:
+                if h.status == states.ALIVE:
+                    if self.inRange(h, self.radiantHeroes):
+                        unused_variable = "attack enemy heroes"
+                    elif self.inRange(h, radiantCreeps): # this function records aggro
+                        unused_variable = "attack enemy creeps"
+                    elif self.buildingsInRange(h, radiantBuildings):
+                        unused_variable = "attack buildings"
+                    else:
+                        # find out where the creep is heading
+                        if len(h.path) > 0:
+                            prevPathPos = h.path[h.pathPos-1]
+                            if len(h.path) > h.pathPos:
+                                targetPathPos = h.path[h.pathPos]
+                        else:
+                            prevPathPos = h.path[h.pathPos]
+                            targetPathPos = h.path[h.pathPos+1]
+                        targetx = targetPathPos[0] - prevPathPos[0]
+                        targety = targetPathPos[1] - prevPathPos[1]
+                        oldPos = h.pos
+                        h.move()
+                        # the move might be blocked! check if it's possible:'
+                        if self.collision(h, h.pos, direCreeps, radiantCreeps):
+                            h.pos = oldPos # just stand still
+
+                    # offset creep so they dont stand on top of each other
+
+                    #screen.blit(h.image, h.offsetPos)
+                h.draw(screen, orange, hero_number, factions.DIRE, alphaMod[inc % len(alphaMod)])
+                    #self.drawHpBar(screen, h, orange) # TODO: also offset hp bar...
+
+                    #self.drawPortrait(screen, h, "dire", hero_number)
+
+                hero_number += 1
 
             n += 1
 
