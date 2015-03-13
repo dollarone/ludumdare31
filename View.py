@@ -48,6 +48,8 @@ class Tower(Building):
         self.armor = 25
         self.bounty = 280
         self.bountyDenied = 140
+        self.xp_bounty = 280
+
 
     def resetAttackCooldown(self):
         self.readyToAttack = False
@@ -275,7 +277,12 @@ class Hero(Unit):
             tmp = pygame.transform.flip(tmp, True, False)
 
         #pygame.draw.rect(screen, colours[self.faction][hero_number], (x, hero_number * 144, 240, 144), 0)
-        screen.blit(tmp, (x + 1, hero_number * 144 + 1), Rect(1, 1, 238, 142)) #256, 144
+        screen.blit(tmp, (x + 1, hero_number * 144 + 1), Rect(1, 1, 240, 144)) #256, 144
+
+        pygame.draw.rect(screen, black, (x + 1, hero_number * 144 + 1, 240, 10), 0)
+        if self.hp > 0:
+            pygame.draw.rect(screen, colours[self.faction][hero_number], (x + 2, hero_number * 144, self.hp / self.hpmax * 238, 8), 0)
+
 #        pygame.draw.rect(screen, darkBlue, (x, hero_number * 144, 240, 144), 0)
 
         #pygame.draw.rect(scr, black, (c.offsetPos[0] - 1 - c.hpmax/40, c.offsetPos[1] - c.radius + 1*c.viewModifier, c.hpmax/15 + 3, 8), 0)
