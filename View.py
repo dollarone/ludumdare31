@@ -310,6 +310,9 @@ class Hero(Unit):
             return True
         return False
 
+    def ultimate(self, View):
+        pass
+
     def newTurn(self):
         super(Hero, self).newTurn()
 
@@ -554,6 +557,11 @@ class Zeus(Hero):
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
 
+    def ultimate(self, view):
+        if self.faction == factions.RADIANT:
+            for h in view.direHeroes:
+                h.damage(200)
+
 class WitchDoctor(Hero):
     hero_image = pygame.image.load("witch_doctor.png")
     hero_image.set_colorkey(( 255, 255, 255))
@@ -575,6 +583,13 @@ class WitchDoctor(Hero):
         self.minAttack = 45
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
+
+    def ultimate(self, View):
+        if self.faction == factions.RADIANT:
+            for h in view.direHeroes:
+                h.damage(200)
+            for c in view.direCreeps:
+                c.damage(200)
 
 
 class Creep(Unit):
@@ -744,32 +759,6 @@ class FactionTakenError(Exception):
     def __str__(self):
         return repr(self.value)
 
-class Colours:
-    global red, green, blue, darkBlue, white, black, pink, mygreen, radiant_1, radiant_2, radiant_3
-
-    # some colours might be useful
-    orange = (255,153,0)
-    red = (255,0,0)
-    green = (0,255,0)
-    blue = (0,0,255)
-    darkBlue = (0,0,128)
-    white = (255,255,255)
-    black = (0,0,0)
-    pink = (155,100,100)
-    mygreen = (0, 135, 0)
-
-    radiant_1 = (46, 106, 230)
-    radiant_2 = (93, 230, 173)
-    radiant_3 = (173, 0, 173)
-    radiant_4 = (220, 217, 10)
-    radiant_5 = (220, 98, 0)
-
-    dire_1 = (230, 122, 176)
-    dire_2 = (146, 164, 64)
-    dire_3 = (92, 197, 224)
-    dire_4 = (0, 119, 31)
-    dire_5 = (149, 96, 0)
-
 
 
 class View:
@@ -797,7 +786,7 @@ class View:
         pygame.init()
         font = pygame.font.SysFont('Arial', 16)
         rand = random.Random()
-        rand.seed(2)
+        rand.seed()
         creepNo = 1
         self.cgi = CGI(self)
 
@@ -909,11 +898,24 @@ class View:
 
     def randomlyPickHeroes(self, available, heroes, faction):
         #raondom TODO heroes.append([available].remove(rand.randrange(0,len(available))))
+        #availableList = list(available)
+
+        #hero = availableList.remove(availableList[rand.randrange(len(availableList))])
+        #heroes.append(hero)
+        #available = set(availableList)
+ #       hero = list(available).pop(rand.randrange(len(available)))
+        heroList = list(available)
+
         for i in range(0, 5):
+            hero = heroList.pop(rand.randrange(len(available)))
+            #heroes.append(hero)
+            #available.remove(hero)
+
             #randomHero = rand.randrange(1, len(available))
-            hero = available.pop()
+            #hero = available.pop()
             hero.faction = faction
             heroes.append(hero)
+            available.remove(hero)
             print(hero.name + " " + str(hero.faction))
 
 
@@ -1100,8 +1102,8 @@ class View:
                 self.direHardLane.append((940 - 60 - i*20,660))
                 self.direEasyLane.append((320, 100 + i*20))
 
-        radiantCreeps = []
-        direCreeps = []
+        self.radiantCreeps = []
+        self.direCreeps = []
 
         availableHeroes = set()
         self.radiantHeroes = []
@@ -1139,9 +1141,9 @@ class View:
             inc += 1
 
             # update offsets etc
-            for c in radiantCreeps:
+            for c in self.radiantCreeps:
                 c.newTurn()
-            for c in direCreeps:
+            for c in self.direCreeps:
                 c.newTurn()
 
             for h in self.radiantHeroes:
@@ -1160,14 +1162,14 @@ class View:
 
             if spawning > 0:
                 if spawningCooldown <= 0:
-                    self.spawnCreep(radiantCreeps, self.radiantHardLane, spawning)
-                    self.spawnCreep(radiantCreeps, self.radiantMidLane, spawning)
-                    self.spawnCreep(radiantCreeps, self.radiantEasyLane, spawning)
-                    #radiantCreeps.append(RangedCreep(radiantHardLane))
+                    self.spawnCreep(self.radiantCreeps, self.radiantHardLane, spawning)
+                    self.spawnCreep(self.radiantCreeps, self.radiantMidLane, spawning)
+                    self.spawnCreep(self.radiantCreeps, self.radiantEasyLane, spawning)
+                    #self.radiantCreeps.append(RangedCreep(radiantHardLane))
 
-                    self.spawnCreep(direCreeps, self.direHardLane, spawning)
-                    self.spawnCreep(direCreeps, self.direMidLane, spawning)
-                    self.spawnCreep(direCreeps, self.direEasyLane, spawning)
+                    self.spawnCreep(self.direCreeps, self.direHardLane, spawning)
+                    self.spawnCreep(self.direCreeps, self.direMidLane, spawning)
+                    self.spawnCreep(self.direCreeps, self.direEasyLane, spawning)
 
                     spawning -= 1
                     spawningCooldown = 20
@@ -1187,13 +1189,21 @@ class View:
                     # User presses ESCAPE-Key
                     if event.key == pygame.K_ESCAPE:
                          mainloop = False
-                    elif event.key == pygame.K_t:
+                    elif event.key == pygame.K_v:
                         # toggle view
                         view = (view + 1) % 4
                     elif event.key == pygame.K_s:
                         slow_mo = not slow_mo
                     elif event.key == pygame.K_q:
-                        self.radiantHeroes[0].ultimate()
+                        self.radiantHeroes[0].ultimate(self)
+                    elif event.key == pygame.K_w:
+                        self.radiantHeroes[1].ultimate(self)
+                    elif event.key == pygame.K_e:
+                        self.radiantHeroes[2].ultimate(self)
+                    elif event.key == pygame.K_r:
+                        self.radiantHeroes[3].ultimate(self)
+                    elif event.key == pygame.K_t:
+                        self.radiantHeroes[4].ultimate(self)
                     elif event.key == pygame.K_z:
                         for h in self.radiantHeroes:
                             if h.status == states.QUEUING:
@@ -1237,7 +1247,7 @@ class View:
                         b.newTurn()
                         if self.inRange(b, self.direHeroes):
                             unused_variable = "attack enemies"
-                        elif self.inRange(b, direCreeps):
+                        elif self.inRange(b, self.direCreeps):
                             unused_variable = "attack enemies"
                     screen.blit(b.image, b.pos)
                     b.draw(screen, colours[factions.RADIANT]["faction"])
@@ -1250,17 +1260,17 @@ class View:
                         b.newTurn()
                         if self.inRange(b, self.radiantHeroes):
                             unused_variable = "attack enemies"
-                        elif self.inRange(b, radiantCreeps):
+                        elif self.inRange(b, self.radiantCreeps):
                             unused_variable = "attack enemies"
                     screen.blit(b.image, b.pos)
                     b.draw(screen, colours[factions.DIRE]["faction"])
                     self.drawHpBar(screen, b, red)
                 #print(b.name + "(" + str(b.hp) + "): " + str(b.pos[0]) + "," + str(b.pos[1]))
 
-            for c in radiantCreeps:
+            for c in self.radiantCreeps:
                 if self.inRange(c, self.direHeroes): # this function records aggro
                     unused_variable = "attack enemies"
-                elif self.inRange(c, direCreeps): # this function records aggro
+                elif self.inRange(c, self.direCreeps): # this function records aggro
                     unused_variable = "attack enemies"
                 elif self.buildingsInRange(c, direBuildings):
                     unused_variable = "attack buildings"
@@ -1278,7 +1288,7 @@ class View:
                     oldPos = c.pos
                     c.move()
                     # the move might be blocked! check if it's possible:'
-                    if self.collision(c, c.pos, direCreeps, radiantCreeps):
+                    if self.collision(c, c.pos, self.direCreeps, self.radiantCreeps):
                         #generate some random alternate moves:
                         #left/right if moving vertically - pick one and continue each turn
                         #up/down if moving vertically
@@ -1294,38 +1304,38 @@ class View:
                         #print("Collision!: " + str(targetx) + "," + str(targety))
                         #c.pos = (oldPos[0] + rand.sample([-1,0,1], 1)[0], oldPos[1] + rand.sample([-1,0,1], 1)[0])
                         if targety < 0:
-                            if not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1] - 1), direCreeps, radiantCreeps):
+                            if not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1] - 1), self.direCreeps, self.radiantCreeps):
                                 c.pos = (oldPos[0] + c.randomDirection, oldPos[1] - 1)
-                            elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), direCreeps, radiantCreeps):
+                            elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), self.direCreeps, self.radiantCreeps):
                                 c.pos = (oldPos[0] + c.randomDirection, oldPos[1])
-                            #elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), direCreeps, radiantCreeps):
+                            #elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), self.direCreeps, self.radiantCreeps):
                             #    c.pos = (oldPos[0] + c.randomDirection, oldPos[1] + 1)
                             else:
                                 c.pos = self.standOrRand(c, oldPos)
                         if targety > 0:
-                            if not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1] + 1), direCreeps, radiantCreeps):
+                            if not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1] + 1), self.direCreeps, self.radiantCreeps):
                                 c.pos = (oldPos[0] + c.randomDirection, oldPos[1] + 1)
-                            elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), direCreeps, radiantCreeps):
+                            elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), self.direCreeps, self.radiantCreeps):
                                 c.pos = (oldPos[0] + c.randomDirection, oldPos[1])
-                            #elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), direCreeps, radiantCreeps):
+                            #elif not self.collision(c, (oldPos[0] + c.randomDirection, oldPos[1]), self.direCreeps, self.radiantCreeps):
                             #    c.pos = (oldPos[0] + c.randomDirection, oldPos[1] - 1)
                             else:
                                 c.pos = self.standOrRand(c, oldPos)
                         if targetx < 0:
-                            if not self.collision(c, (oldPos[0] - 1, oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
+                            if not self.collision(c, (oldPos[0] - 1, oldPos[1] + c.randomDirection), self.direCreeps, self.radiantCreeps):
                                 c.pos = (oldPos[0] - 1, oldPos[1] + c.randomDirection)
-                            elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
+                            elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), self.direCreeps, self.radiantCreeps):
                                 c.pos = (oldPos[0], oldPos[1] + c.randomDirection)
-                            #elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
+                            #elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), self.direCreeps, self.radiantCreeps):
                             #    c.pos = (oldPos[0] + 1, oldPos[1] + c.randomDirection)
                             else:
                                 c.pos = self.standOrRand(c, oldPos)
                         if targetx > 0:
-                            if not self.collision(c, (oldPos[0] + 1, oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
+                            if not self.collision(c, (oldPos[0] + 1, oldPos[1] + c.randomDirection), self.direCreeps, self.radiantCreeps):
                                 c.pos = (oldPos[0] + 1, oldPos[1] + c.randomDirection)
-                            elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
+                            elif not self.collision(c, (oldPos[0], oldPos[1] + c.randomDirection), self.direCreeps, self.radiantCreeps):
                                 c.pos = (oldPos[0], oldPos[1] + c.randomDirection)
-                            #elif not self.collision(c, (oldPos[0] - 1, oldPos[1] + c.randomDirection), direCreeps, radiantCreeps):
+                            #elif not self.collision(c, (oldPos[0] - 1, oldPos[1] + c.randomDirection), self.direCreeps, self.radiantCreeps):
                             #    c.pos = (oldPos[0] - 1, oldPos[1] + c.randomDirection)
                             else:
                                 c.pos = self.standOrRand(c, oldPos) #(oldPos[0], oldPos[1])
@@ -1356,10 +1366,10 @@ class View:
                 c.draw(screen, colours[factions.RADIANT]["faction"])
                 self.drawHpBar(screen, c, green)
 
-            for c in direCreeps:
+            for c in self.direCreeps:
                 if self.inRange(c, self.radiantHeroes): # this function records aggro
                     unused_variable = "attack enemy heroes"
-                elif self.inRange(c, radiantCreeps): # this function records aggro
+                elif self.inRange(c, self.radiantCreeps): # this function records aggro
                     unused_variable = "attack enemy creeps"
                 elif self.buildingsInRange(c, radiantBuildings):
                     unused_variable = "attack buildings"
@@ -1377,7 +1387,7 @@ class View:
                     oldPos = c.pos
                     c.move()
                     # the move might be blocked! check if it's possible:'
-                    if self.collision(c, c.pos, radiantCreeps, direCreeps):
+                    if self.collision(c, c.pos, self.radiantCreeps, self.direCreeps):
                         c.pos = oldPos # just stand still
 
                 # offset creep so they dont stand on top of each other
@@ -1396,7 +1406,7 @@ class View:
                 if h.status == states.ALIVE:
                     if self.inRange(h, self.direHeroes):
                         unused_variable = "attack enemy heroes"
-                    elif self.inRange(h, direCreeps): # this function records aggro
+                    elif self.inRange(h, self.direCreeps): # this function records aggro
                         unused_variable = "attack enemy creeps"
                     elif self.buildingsInRange(h, direBuildings):
                         unused_variable = "attack buildings"
@@ -1414,7 +1424,7 @@ class View:
                         oldPos = h.pos
                         h.move()
                         # the move might be blocked! check if it's possible:'
-                        if self.collision(h, h.pos, radiantCreeps, direCreeps):
+                        if self.collision(h, h.pos, self.radiantCreeps, self.direCreeps):
                             h.pos = oldPos # just stand still
 
                     # offset creep so they dont stand on top of each other
@@ -1434,7 +1444,7 @@ class View:
                 if h.status == states.ALIVE:
                     if self.inRange(h, self.radiantHeroes):
                         unused_variable = "attack enemy heroes"
-                    elif self.inRange(h, radiantCreeps): # this function records aggro
+                    elif self.inRange(h, self.radiantCreeps): # this function records aggro
                         unused_variable = "attack enemy creeps"
                     elif self.buildingsInRange(h, radiantBuildings):
                         unused_variable = "attack buildings"
@@ -1452,7 +1462,7 @@ class View:
                         oldPos = h.pos
                         h.move()
                         # the move might be blocked! check if it's possible:'
-                        if self.collision(h, h.pos, direCreeps, radiantCreeps):
+                        if self.collision(h, h.pos, self.direCreeps, self.radiantCreeps):
                             h.pos = oldPos # just stand still
 
                     # offset creep so they dont stand on top of each other
