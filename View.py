@@ -240,6 +240,8 @@ class Hero(Unit):
         self.respawn_timer = 110
         self.faction = "Unknown"
         self.level = 1
+        self.ultimate_cooldown = 0
+        self.ultimate_cooldown_reset = 600
 
     def draw(self, scr, col, hero_number, faction, gradient):
         if self.status == states.ALIVE:
@@ -313,6 +315,8 @@ class Hero(Unit):
     def newTurn(self):
         super(Hero, self).newTurn()
 
+        self.ultimate_cooldown -= 1
+
         #print(self.name + " " + str(self.status))
 
         if self.respawn_timer <= 0 and self.status == states.DEAD:
@@ -348,8 +352,8 @@ class Hero(Unit):
         self.offset = 0
         self.armor = 2
 
-
-
+    def ultimate(self, view):
+        self.ultimate_cooldown = self.ultimate_cooldown_reset
 
 class Ursa(Hero):
     hero_image = pygame.image.load("ursa.png")
@@ -372,6 +376,9 @@ class Ursa(Hero):
         self.minAttack = 45
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
+
+    def ultimate(self, view):
+        super(Ursa, self).ultimate(view)
 
 
 class Sven(Hero):
@@ -396,6 +403,9 @@ class Sven(Hero):
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
 
+    def ultimate(self, view):
+        super(Sven, self).ultimate(view)
+
 
 class Wraith_King(Hero):
     hero_image = pygame.image.load("wraith_king.png")
@@ -419,6 +429,9 @@ class Wraith_King(Hero):
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
 
+    def ultimate(self, view):
+        # no because it's passive: super(Hero, self).newTurn()
+        pass
 
 class Tidehunter(Hero):
     hero_image = pygame.image.load("tidehunter.png")
@@ -441,6 +454,9 @@ class Tidehunter(Hero):
         self.minAttack = 45
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
+
+    def ultimate(self, view):
+        super(Tidehunter, self).ultimate(view)
 
 
 class Furion(Hero):
@@ -465,6 +481,9 @@ class Furion(Hero):
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
 
+    def ultimate(self, view):
+        super(Furion, self).ultimate(view)
+
 
 class Sandking(Hero):
     hero_image = pygame.image.load("sandking.png")
@@ -488,6 +507,10 @@ class Sandking(Hero):
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
 
+    def ultimate(self, view):
+        super(Sandking, self).ultimate(view)
+
+
 class OgreMagi(Hero):
     hero_image = pygame.image.load("ogremagi.png")
     hero_image.set_colorkey(( 255, 255, 255))
@@ -509,6 +532,10 @@ class OgreMagi(Hero):
         self.minAttack = 45
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
+
+    def ultimate(self, view):
+        super(OgreMagi, self).ultimate(view)
+
 
 class Warlock(Hero):
     hero_image = pygame.image.load("warlock.png")
@@ -532,6 +559,10 @@ class Warlock(Hero):
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
 
+    def ultimate(self, view):
+        super(Warlock, self).ultimate(view)
+
+
 class Zeus(Hero):
     hero_image = pygame.image.load("zeus.png")
     hero_image.set_colorkey(( 255, 255, 255))
@@ -554,6 +585,9 @@ class Zeus(Hero):
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
 
+    def ultimate(self, view):
+        super(Zeus, self).ultimate(view)
+
 class WitchDoctor(Hero):
     hero_image = pygame.image.load("witch_doctor.png")
     hero_image.set_colorkey(( 255, 255, 255))
@@ -575,6 +609,9 @@ class WitchDoctor(Hero):
         self.minAttack = 45
         self.armor = 5.52
         self.attackCooldown = 102 # 1.7 BAT
+
+    def ultimate(self, view):
+        super(WitchDoctor, self).ultimate(view)
 
 
 class Creep(Unit):
